@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>GTS Meta Studio</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div id="drag-overlay"><h2>Drop Folder Anywhere to Load</h2></div>
+
+    <div class="sidebar-left">
+        <div class="folder-input-container">
+            <input type="text" id="folder-path-input" placeholder="Paste path and press Enter...">
+        </div>
+        <div id="file-tree">
+            <div class="empty-state">
+                <span class="material-symbols-rounded">folder_open</span>
+                Drag a folder here, or paste a path above and press <strong>Enter</strong>.
+            </div>
+        </div>
+    </div>
+    
+    <div class="resizer" id="resizer-left"></div>
+    
+    <div class="main-content">
+        <h2>Middle Section</h2>
+        <p>Main workspace area.</p>
+    </div>
+    
+    <div class="resizer" id="resizer-right"></div>
+    
+    <div class="sidebar-right">
+        <h2>Right Sidebar</h2>
+        <p>Inspector / Tools.</p>
+    </div>
+
+    <script src="./renderer.js"></script>
+</body>
+</html>
