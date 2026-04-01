@@ -16,8 +16,11 @@
     <div id="drag-overlay"><h2>Drop Folder Anywhere to Load</h2></div>
 
     <div class="sidebar-left">
-        <div class="folder-input-container">
-            <input type="text" id="folder-path-input" placeholder="Paste path and press Enter...">
+        <div class="folder-input-container" style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="folder-path-input" placeholder="Paste path and press Enter..." style="flex: 1;">
+            <button id="theme-toggle-btn" class="icon-btn" title="Toggle Theme" style="padding: 8px;">
+                <span class="material-symbols-rounded" id="theme-icon" style="font-size: 18px;">dark_mode</span>
+            </button>
         </div>
         <div id="file-tree">
             <div class="empty-state">
@@ -97,6 +100,11 @@
                     <span style="margin-bottom: 4px;">Location</span>
                     <span id="meta-path" style="font-size: 11px; word-break: break-all;">...</span>
                 </div>
+            </div>
+            <div id="exif-section" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Extended EXIF Data</h4>
+                <div id="exif-data-list" style="font-size: 11px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px; padding-right: 5px;">
+                    </div>
             </div>
         </div>
 

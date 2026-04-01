@@ -3,10 +3,11 @@ const fileTree = document.getElementById('file-tree');
 const dragOverlay = document.getElementById('drag-overlay');
 
 const checkedFiles = new Map();
+const exifDataCache = new Map();
 
 // GLOBALS FOR TABLE SELECTION & PREVIEW
 let selectedTableFiles = new Set(); 
-let previewFilePath = null; // NEW: Tracks a file being viewed without being checked
+let previewFilePath = null;
 
 let lastClickedNode = null; 
 let isBatchUpdating = false; 
@@ -61,7 +62,14 @@ function updateDetailsTable() {
             <td style="text-align: center;">
                 <input type="checkbox" class="table-checkbox" ${isSelected ? 'checked' : ''}>
             </td>
-            <td title="${data.name}">${data.name}</td>
+            <td title="${data.name}">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${data.name}</span>
+                    <button class="icon-btn exif-fetch-btn" data-path="${data.path}" title="Fetch Extended Metadata">
+                        <span class="material-symbols-rounded" style="font-size: 15px;">manage_search</span>
+                    </button>
+                </div>
+            </td>
             <td>${new Date(data.modified).toLocaleString()}</td>
             <td>${data.extension.toUpperCase()} File</td>
             <td>${formatSize(data.size)}</td>
@@ -74,7 +82,7 @@ function updateDetailsTable() {
             if (e.button !== 0) return; 
             
             const isCheckboxClick = e.target.classList.contains('table-checkbox');
-            if (isCheckboxClick) e.preventDefault(); // Stop native double-toggling
+            if (isCheckboxClick) e.preventDefault();
 
             let shouldToggleCheck = false;
 
@@ -90,7 +98,7 @@ function updateDetailsTable() {
                     if (selectedTableFiles.size === 0) previewFilePath = data.path;
                 } else {
                     selectedTableFiles.add(data.path);
-                    previewFilePath = null; // Clear preview mode
+                    previewFilePath = null;
                 }
             } else {
                 // Rule: If 0 files checked and clicked row text, enter Preview Mode
@@ -116,6 +124,38 @@ function updateDetailsTable() {
             
             masterCb.checked = checkedFiles.size > 0 && selectedTableFiles.size === checkedFiles.size;
             loadInspectorData(); 
+        });
+
+        // NEW: Exif Fetch Button Logic
+        const exifBtn = row.querySelector('.exif-fetch-btn');
+        exifBtn.addEventListener('mousedown', async (e) => {
+            e.stopPropagation(); // Prevents the row from selecting/previewing automatically
+            if (e.button !== 0) return;
+            
+            const icon = exifBtn.querySelector('span');
+            
+            // Loading state
+            icon.textContent = 'hourglass_empty';
+            icon.classList.add('spinning');
+            
+            // Call our Node backend!
+            const result = await window.electronAPI.getExifData(data.path);
+            
+            icon.classList.remove('spinning');
+            
+            if (!result.error) {
+                icon.textContent = 'check_circle';
+                icon.style.color = 'var(--gts-teal)';
+                exifDataCache.set(data.path, result); // Save to temporary session memory
+                
+                // If the user is currently looking at this file, refresh the sidebar
+                if (previewFilePath === data.path || selectedTableFiles.has(data.path)) {
+                    loadInspectorData();
+                }
+            } else {
+                icon.textContent = 'error';
+                icon.style.color = '#f48771';
+            }
         });
 
         tbody.appendChild(row);
@@ -401,6 +441,33 @@ async function loadInspectorData() {
         document.getElementById('meta-modified').textContent = new Date(details.modified).toLocaleString();
         document.getElementById('meta-path').textContent = details.path;
 
+        // ... previous code ...
+        document.getElementById('meta-modified').textContent = new Date(details.modified).toLocaleString();
+        document.getElementById('meta-path').textContent = details.path;
+
+        // NEW: Populate EXIF data if it exists in our session cache
+        const exifSection = document.getElementById('exif-section');
+        const exifList = document.getElementById('exif-data-list');
+        
+        if (exifDataCache.has(targetPath)) {
+            const exifData = exifDataCache.get(targetPath);
+            exifList.innerHTML = ''; // Clear old data
+            
+            // Filter out basic OS details that ExifTool repeats, leaving the juicy extended metadata
+            const ignoredKeys = ['SourceFile', 'ExifToolVersion', 'FileName', 'Directory', 'FileSize', 'FileModifyDate', 'FileAccessDate', 'FileInodeChangeDate'];
+            
+            for (const [key, value] of Object.entries(exifData)) {
+                if (!ignoredKeys.includes(key) && typeof value !== 'object') {
+                    exifList.innerHTML += `<div class="exif-item"><span>${key}</span><span>${value}</span></div>`;
+                }
+            }
+            exifSection.style.display = 'block';
+        } else {
+            exifSection.style.display = 'none';
+        }
+
+        inspectorContent.style.display = 'flex';
+
         inspectorContent.style.display = 'flex';
     } 
     // STATE 3: Empty State
@@ -408,3 +475,21 @@ async function loadInspectorData() {
         inspectorEmpty.style.display = 'block';
     }
 }
+
+// ==========================================
+// THEME TOGGLE LOGIC
+// ==========================================
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const themeIcon = document.getElementById('theme-icon');
+
+themeToggleBtn.addEventListener('click', () => {
+    const root = document.documentElement;
+    
+    if (root.getAttribute('data-theme') === 'dark') {
+        root.removeAttribute('data-theme');
+        themeIcon.textContent = 'dark_mode'; // Show moon icon
+    } else {
+        root.setAttribute('data-theme', 'dark');
+        themeIcon.textContent = 'light_mode'; // Show sun icon
+    }
+});

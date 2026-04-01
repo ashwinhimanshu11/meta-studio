@@ -418,3 +418,79 @@ tr { cursor: pointer; transition: background-color 0.1s; }
 }
 .meta-item > span:first-child { color: var(--text-muted); font-weight: 500; }
 .meta-item > span:last-child { color: var(--text-main); text-align: right; }
+
+/* =========================================
+   ExifTool Fetch Button & Animations
+   ========================================= */
+.exif-fetch-btn {
+    padding: 2px 4px;
+    margin-left: 8px;
+    border-radius: 4px;
+    opacity: 0.4;
+    transition: all 0.2s;
+}
+tr:hover .exif-fetch-btn { opacity: 1; }
+.exif-fetch-btn:hover { background-color: var(--gts-teal); color: #fff; opacity: 1; }
+
+.exif-item {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+.exif-item span:first-child { color: var(--text-muted); font-weight: 500; }
+.exif-item span:last-child { color: var(--text-main); text-align: right; max-width: 60%; word-break: break-all; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.spinning { animation: spin 1s linear infinite; }
+
+/* =========================================
+   Neon Dark Theme Overrides
+   ========================================= */
+[data-theme="dark"] {
+    /* Lighter, Neon Accents */
+    --gts-purple: #e879f9; 
+    --gts-blue: #60a5fa;   
+    --gts-teal: #2dd4bf;   
+    --gts-gradient: linear-gradient(135deg, var(--gts-purple), var(--gts-blue));
+    
+    /* Deep Dark Base */
+    --bg-base: #0f172a;       
+    --bg-panel: #1e293b;      
+    --bg-hover: #334155;      
+    --border-color: #475569;  
+    
+    /* Light Typography */
+    --text-main: #f8fafc;     
+    --text-muted: #94a3b8;    
+}
+
+/* Remove hardcoded whites so they inherit the dark backgrounds */
+[data-theme="dark"] .table-container,
+[data-theme="dark"] #folder-path-input {
+    background-color: var(--bg-panel);
+    border-color: var(--border-color);
+}
+
+/* Neon Glow Effects for Selected Items */
+[data-theme="dark"] .tree-item.selected { 
+    box-shadow: 0 0 15px rgba(232, 121, 249, 0.3); 
+}
+
+[data-theme="dark"] .icon-btn.active {
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] tr.selected-row td {
+    background-color: rgba(45, 212, 191, 0.1) !important; 
+    color: var(--gts-teal);
+}
+
+[data-theme="dark"] #drag-overlay {
+    background: rgba(15, 23, 42, 0.85); /* Dark blur */
+}
+
+/* Ensure the table headers keep the dark background */
+[data-theme="dark"] thead th {
+    background-color: var(--bg-panel);
+}

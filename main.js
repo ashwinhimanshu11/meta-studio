@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { execFile } = require('child_process');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -110,7 +111,7 @@ ipcMain.handle('read-dir-recursive', async (event, dirPath) => {
                 if (entry.isDirectory()) {
                     walk(fullPath);
                 } else {
-                    try { // Safety net
+                    try {
                         const fileStats = fs.statSync(fullPath);
                         results.push({
                             name: entry.name,
@@ -182,4 +183,39 @@ app.on('activate', function () {
     if (mainWindow === null) {
         createWindow();
     }
+});
+
+// 4. ExifTool Integration (Cross-Platform)
+ipcMain.handle('get-exif-data', async (event, filePath) => {
+    return new Promise((resolve) => {
+        // 1. Detect Operating System
+        let platformFolder = 'linux';
+        let executableName = 'exiftool';
+        
+        if (process.platform === 'win32') {
+            platformFolder = 'win';
+            executableName = 'exiftool.exe';
+        } else if (process.platform === 'darwin') {
+            platformFolder = 'mac';
+        }
+
+        // 2. Construct the exact path to the binary
+        const exiftoolPath = path.join(__dirname, 'bin', platformFolder, executableName);
+
+        // 3. Execute the binary safely (execFile prevents shell injection from weird file names)
+        execFile(exiftoolPath, ['-j', filePath], (error, stdout, stderr) => {
+            if (error) {
+                console.error("Exiftool error:", error);
+                resolve({ error: error.message });
+                return;
+            }
+            try {
+                // Exiftool -j returns an array containing one JSON object
+                const data = JSON.parse(stdout);
+                resolve(data[0]); 
+            } catch (e) {
+                resolve({ error: "Failed to parse EXIF data." });
+            }
+        });
+    });
 });
