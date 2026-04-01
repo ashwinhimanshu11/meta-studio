@@ -38,10 +38,15 @@
 
         <div id="main-table-view" style="display: none; height: 100%; flex-direction: column;">
             <div class="content-header">
-                <div>
+                <div style="display: flex; align-items: center; gap: 15px;">
                     <h2 style="margin: 0;">Selected Files</h2>
                     <span id="file-count" style="color: var(--text-muted); font-size: 13px; font-weight: 500;">0 items selected</span>
+                    
+                    <button id="unselect-all-btn" class="icon-btn" style="display: none; font-size: 11px; padding: 4px 10px; border-radius: 4px;">
+                        <span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">deselect</span> Clear All
+                    </button>
                 </div>
+                
                 <button id="toggle-sidebar-btn" class="icon-btn active" title="Toggle Inspector">
                     <span class="material-symbols-rounded">dock_to_left</span>
                 </button>
@@ -51,6 +56,9 @@
                 <table id="details-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input type="checkbox" id="master-table-checkbox" style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--gts-teal);">
+                            </th>
                             <th>Name</th>
                             <th>Date Modified</th>
                             <th>Type</th>
@@ -89,6 +97,18 @@
                     <span style="margin-bottom: 4px;">Location</span>
                     <span id="meta-path" style="font-size: 11px; word-break: break-all;">...</span>
                 </div>
+            </div>
+        </div>
+
+        <div id="inspector-multi" style="display: none; flex-direction: column; height: 100%; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+            <span class="material-symbols-rounded" style="font-size: 56px; color: var(--gts-teal); margin-bottom: 15px; opacity: 0.8;">collections_bookmark</span>
+            <h3 id="multi-count" style="margin: 0 0 8px 0; font-size: 18px; color: var(--text-main);">Multiple Files</h3>
+            <p id="multi-size" style="color: var(--text-muted); font-size: 13px; margin: 0 0 25px 0;">Total Size: ...</p>
+            
+            <div style="width: 100%; text-align: left;">
+                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Breakdown</span>
+                <div id="multi-types" style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px; background: var(--bg-base); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); max-height: 300px; overflow-y: auto;">
+                    </div>
             </div>
         </div>
     </div>
