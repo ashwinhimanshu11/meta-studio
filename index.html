@@ -30,15 +30,67 @@
     <div class="resizer" id="resizer-left"></div>
     
     <div class="main-content">
-        <h2>Middle Section</h2>
-        <p>Main workspace area.</p>
+        <div id="main-empty-state" class="main-empty-state">
+            <span class="material-symbols-rounded">drive_folder_upload</span>
+            <h2>Welcome to GTS Meta Studio</h2>
+            <p>Import a folder using the sidebar or drag and drop it anywhere to get started.</p>
+        </div>
+
+        <div id="main-table-view" style="display: none; height: 100%; flex-direction: column;">
+            <div class="content-header">
+                <div>
+                    <h2 style="margin: 0;">Selected Files</h2>
+                    <span id="file-count" style="color: var(--text-muted); font-size: 13px; font-weight: 500;">0 items selected</span>
+                </div>
+                <button id="toggle-sidebar-btn" class="icon-btn active" title="Toggle Inspector">
+                    <span class="material-symbols-rounded">dock_to_left</span>
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table id="details-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Date Modified</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="details-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
     </div>
     
     <div class="resizer" id="resizer-right"></div>
     
-    <div class="sidebar-right">
-        <h2>Right Sidebar</h2>
-        <p>Inspector / Tools.</p>
+    <div class="sidebar-right" id="sidebar-right">
+        <div id="inspector-empty" class="empty-state" style="margin-top: 50%;">
+            <span class="material-symbols-rounded">info</span>
+            Select a file to view details
+        </div>
+
+        <div id="inspector-content" style="display: none; flex-direction: column; height: 100%;">
+            <div class="thumbnail-container">
+                <img id="meta-img" src="" style="display: none; max-width: 100%; max-height: 200px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <span id="meta-icon" class="material-symbols-rounded" style="display: none; font-size: 80px; color: var(--gts-teal);">draft</span>
+            </div>
+            
+            <h3 id="meta-name" style="margin: 20px 0 10px 0; font-size: 15px; word-break: break-all; line-height: 1.4;">Filename</h3>
+            
+            <div class="meta-list">
+                <div class="meta-item"><span>Kind</span><span id="meta-kind">...</span></div>
+                <div class="meta-item"><span>Size</span><span id="meta-size">...</span></div>
+                <div class="meta-item"><span>Created</span><span id="meta-created">...</span></div>
+                <div class="meta-item"><span>Modified</span><span id="meta-modified">...</span></div>
+                <div class="meta-item" style="flex-direction: column; align-items: flex-start; margin-top: 15px;">
+                    <span style="margin-bottom: 4px;">Location</span>
+                    <span id="meta-path" style="font-size: 11px; word-break: break-all;">...</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="./renderer.js"></script>

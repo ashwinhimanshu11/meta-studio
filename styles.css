@@ -58,6 +58,7 @@ body {
     padding: 30px;
     display: flex;
     flex-direction: column;
+    min-width: 0; /* THE MAGIC FIX: Allows the flex container to shrink */
 }
 
 .sidebar-right {
@@ -244,3 +245,167 @@ h2 {
 .resizer:hover, .resizer.active {
     background-color: var(--gts-teal);
 }
+
+/* =========================================
+   Table & Details Layout
+   ========================================= */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+
+.table-container {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow-y: auto;
+    overflow-x: auto; /* Allows horizontal scroll if severely compressed */
+    flex-grow: 1;
+    min-height: 0; /* Prevents vertical blowout */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+    table-layout: fixed;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-panel);
+    padding: 12px 15px;
+    font-weight: 600;
+    color: var(--gts-blue);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-color);
+    z-index: 5;
+}
+
+th:nth-child(1) { width: 45%; }
+th:nth-child(2) { width: 25%; }
+th:nth-child(3) { width: 15%; }
+th:nth-child(4) { width: 15%; }
+
+td {
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+tr:hover td { background-color: var(--bg-base); }
+
+/* Checkboxes */
+.tree-checkbox {
+    margin-right: 8px;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--gts-teal);
+    flex-shrink: 0;
+}
+
+/* =========================================
+   Main Area Welcome Banner
+   ========================================= */
+.main-empty-state {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+    color: var(--text-muted);
+    animation: fadeIn 0.4s ease;
+}
+
+.main-empty-state .material-symbols-rounded {
+    font-size: 72px !important;
+    color: var(--gts-teal);
+    margin-bottom: 20px;
+    opacity: 0.9;
+}
+
+.main-empty-state h2 {
+    font-size: 26px;
+    margin-bottom: 12px;
+    background: var(--gts-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.main-empty-state p {
+    font-size: 14px;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   Middle Section Interactions & Buttons
+   ========================================= */
+.icon-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--gts-blue); }
+.icon-btn.active { background: var(--gts-gradient); color: #fff; border-color: transparent; }
+
+tr.selected-row td {
+    background-color: rgba(29, 100, 135, 0.1) !important;
+    color: var(--gts-blue);
+    font-weight: 500;
+}
+tr { cursor: pointer; transition: background-color 0.1s; }
+
+/* =========================================
+   Right Sidebar Inspector
+   ========================================= */
+.thumbnail-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--bg-base);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 120px;
+    border: 1px solid var(--border-color);
+}
+
+.meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+}
+.meta-item {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+}
+.meta-item > span:first-child { color: var(--text-muted); font-weight: 500; }
+.meta-item > span:last-child { color: var(--text-main); text-align: right; }

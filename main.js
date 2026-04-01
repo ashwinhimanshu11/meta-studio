@@ -66,36 +66,102 @@ function createWindow() {
     });
 }
 
-// Listen for 'read-dir' requests from the UI
+// 1. Standard Folder Reader (Updated with Metadata)
 ipcMain.handle('read-dir', async (event, dirPath) => {
     try {
-        // NEW: Check if the dropped path is a file or a folder
         const stat = fs.statSync(dirPath);
-        let targetDir = dirPath;
-
-        // If it's a file, let's be smart and load its parent folder instead
-        if (!stat.isDirectory()) {
-            targetDir = path.dirname(dirPath);
-        }
-
-        // Read the directory contents
+        let targetDir = stat.isDirectory() ? dirPath : path.dirname(dirPath);
         const entries = fs.readdirSync(targetDir, { withFileTypes: true });
         
-        // Map and sort the results (Folders first, then files)
-        return entries.map(entry => ({
-            name: entry.name,
-            isDirectory: entry.isDirectory(),
-            path: path.join(targetDir, entry.name)
-        })).sort((a, b) => {
+        return entries.map(entry => {
+            const fullPath = path.join(targetDir, entry.name);
+            let size = 0, modified = new Date();
+            
+            try { // Safety net for locked/hidden system files
+                const fileStats = fs.statSync(fullPath);
+                size = fileStats.size;
+                modified = fileStats.mtime;
+            } catch (err) { console.warn("Skipped metadata for locked file:", entry.name); }
+            
+            return {
+                name: entry.name,
+                isDirectory: entry.isDirectory(),
+                path: fullPath,
+                size: size,
+                modified: modified,
+                extension: entry.name.split('.').pop().toLowerCase()
+            };
+        }).sort((a, b) => {
             if (a.isDirectory && !b.isDirectory) return -1;
             if (!a.isDirectory && b.isDirectory) return 1;
             return a.name.localeCompare(b.name);
         });
+    } catch (error) { return { error: error.message }; }
+});
+
+// 2. Deep Recursive Crawler (For the Checkboxes)
+ipcMain.handle('read-dir-recursive', async (event, dirPath) => {
+    try {
+        const results = [];
+        function walk(currentPath) {
+            const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(currentPath, entry.name);
+                if (entry.isDirectory()) {
+                    walk(fullPath);
+                } else {
+                    try { // Safety net
+                        const fileStats = fs.statSync(fullPath);
+                        results.push({
+                            name: entry.name,
+                            isDirectory: false,
+                            path: fullPath,
+                            size: fileStats.size,
+                            modified: fileStats.mtime,
+                            extension: entry.name.split('.').pop().toLowerCase()
+                        });
+                    } catch (err) {}
+                }
+            }
+        }
+        walk(dirPath);
+        return results;
+    } catch (error) { return { error: error.message }; }
+});
+
+// 3. Single File Deep Details & Thumbnail
+ipcMain.handle('get-file-details', async (event, filePath) => {
+    try {
+        const stats = fs.statSync(filePath);
+        const ext = filePath.split('.').pop().toLowerCase();
+        let thumbnail = null;
+
+        // If it's an image (and under 10MB to prevent memory crashes), generate a base64 thumbnail
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (imageExtensions.includes(ext) && stats.size < 10 * 1024 * 1024) {
+            try {
+                const buffer = fs.readFileSync(filePath);
+                const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+                thumbnail = `data:image/${mimeType};base64,${buffer.toString('base64')}`;
+            } catch (err) {
+                console.warn("Could not generate thumbnail for:", filePath);
+            }
+        }
+
+        return {
+            name: path.basename(filePath),
+            path: filePath,
+            size: stats.size,
+            created: stats.birthtime,
+            modified: stats.mtime,
+            extension: ext,
+            thumbnail: thumbnail
+        };
     } catch (error) {
-        console.error("Error reading directory:", error);
         return { error: error.message };
     }
 });
+
 // This method is called when Electron has finished initialization
 app.whenReady().then(() => {
     setBinaryPermissions();
