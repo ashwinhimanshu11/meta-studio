@@ -45,17 +45,33 @@
                     <h2 style="margin: 0;">Selected Files</h2>
                     <span id="file-count" style="color: var(--text-muted); font-size: 13px; font-weight: 500;">0 items selected</span>
                     
+                    <label id="global-select-all-container" style="display: none; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--text-muted); cursor: pointer; border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; transition: all 0.2s;">
+                        <input type="checkbox" id="global-master-checkbox" style="cursor: pointer; width: 13px; height: 13px; accent-color: var(--gts-teal); margin: 0;">
+                        Select All
+                    </label>
+
                     <button id="unselect-all-btn" class="icon-btn" style="display: none; font-size: 11px; padding: 4px 10px; border-radius: 4px;">
                         <span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">deselect</span> Clear All
                     </button>
+                    
+                    <button id="fetch-exif-btn" class="icon-btn" style="display: none; font-size: 11px; padding: 4px 10px; border-radius: 4px;">
+                        <span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">manage_search</span> Fetch EXIF
+                    </button>
                 </div>
                 
-                <button id="toggle-sidebar-btn" class="icon-btn active" title="Toggle Inspector">
-                    <span class="material-symbols-rounded">dock_to_left</span>
-                </button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="display: flex; background: var(--bg-hover); border-radius: 6px; padding: 3px;">
+                        <button id="view-list-btn" class="icon-btn active" style="padding: 4px 8px;" title="List View"><span class="material-symbols-rounded" style="font-size: 16px;">view_list</span></button>
+                        <button id="view-grid-btn" class="icon-btn" style="padding: 4px 8px;" title="Grid View"><span class="material-symbols-rounded" style="font-size: 16px;">grid_view</span></button>
+                    </div>
+                    
+                    <button id="toggle-sidebar-btn" class="icon-btn active" title="Toggle Inspector">
+                        <span class="material-symbols-rounded">dock_to_left</span>
+                    </button>
+                </div>
             </div>
             
-            <div class="table-container">
+            <div id="table-container" class="table-container">
                 <table id="details-table">
                     <thead>
                         <tr>
@@ -69,9 +85,12 @@
                         </tr>
                     </thead>
                     <tbody id="details-body">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
+
+            <div id="grid-container" class="grid-container" style="display: none;">
+                </div>
         </div>
     </div>
     
@@ -102,9 +121,14 @@
                 </div>
             </div>
             <div id="exif-section" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Extended EXIF Data</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Extended EXIF Data</h4>
+                    <button id="expand-exif-btn" class="icon-btn" title="Open in New Window" style="padding: 2px 6px;">
+                        <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span>
+                    </button>
+                </div>
                 <div id="exif-data-list" style="font-size: 11px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px; padding-right: 5px;">
-                    </div>
+                </div>
             </div>
         </div>
 
@@ -116,10 +140,12 @@
             <div style="width: 100%; text-align: left;">
                 <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Breakdown</span>
                 <div id="multi-types" style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px; background: var(--bg-base); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); max-height: 300px; overflow-y: auto;">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    <div id="hover-card" class="hover-card" style="display: none;"></div>
 
     <script src="./renderer.js"></script>
 </body>

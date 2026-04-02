@@ -252,8 +252,14 @@ h2 {
 .content-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: center; /* Changed from flex-end to keep things centered if they wrap */
     margin-bottom: 20px;
+    gap: 15px;           /* Adds breathing room if items drop to a new line */
+    flex-wrap: wrap;     /* Allows the header elements to wrap instead of squishing */
+}
+
+.content-header h2 {
+    white-space: nowrap;
 }
 
 .table-container {
@@ -378,6 +384,8 @@ tr:hover td { background-color: var(--bg-base); }
     display: flex;
     align-items: center;
     transition: all 0.2s;
+    white-space: nowrap; /* Prevents text stacking inside the button */
+    flex-shrink: 0;      /* Prevents the button from being squished */
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--gts-blue); }
 .icon-btn.active { background: var(--gts-gradient); color: #fff; border-color: transparent; }
@@ -494,3 +502,103 @@ tr:hover .exif-fetch-btn { opacity: 1; }
 [data-theme="dark"] thead th {
     background-color: var(--bg-panel);
 }
+
+/* =========================================
+   Grid View & Hover Card
+   ========================================= */
+.grid-container {
+    background: var(--bg-base);
+    border-radius: 8px;
+    overflow-y: auto;
+    flex-grow: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 15px;
+    padding: 15px;
+    align-content: start;
+    border: 1px solid var(--border-color);
+}
+
+.grid-item {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 10px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    user-select: none;
+}
+.grid-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-color: var(--gts-teal);
+}
+
+/* Checkbox overlay logic */
+.grid-checkbox {
+    position: absolute;
+    top: 8px; left: 8px;
+    width: 14px; height: 14px;
+    accent-color: var(--gts-teal);
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+.grid-item:hover .grid-checkbox,
+.grid-item.selected-item .grid-checkbox { opacity: 1; }
+
+.grid-icon {
+    font-size: 42px !important;
+    color: var(--gts-blue);
+    margin-bottom: 12px;
+    opacity: 0.8;
+}
+
+.grid-name {
+    font-size: 11px;
+    color: var(--text-main);
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Selection State */
+.grid-item.selected-item {
+    background-color: rgba(29, 100, 135, 0.1);
+    border-color: var(--gts-teal);
+}
+[data-theme="dark"] .grid-item.selected-item {
+    background-color: rgba(45, 212, 191, 0.1);
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
+}
+
+/* Floating Hover Card */
+.hover-card {
+    position: fixed;
+    z-index: 10000;
+    background: var(--bg-panel);
+    border: 1px solid var(--gts-teal);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    width: 220px;
+    pointer-events: none; /* Allows mouse to pass right through it */
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-main);
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+}
+[data-theme="dark"] .hover-card { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.hover-card-title { font-weight: 600; color: var(--gts-teal); margin-bottom: 4px; word-break: break-all; }
+.hover-card-row { display: flex; justify-content: space-between; }
+.hover-card-row span:first-child { color: var(--text-muted); }

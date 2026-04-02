@@ -219,3 +219,25 @@ ipcMain.handle('get-exif-data', async (event, filePath) => {
         });
     });
 });
+
+// 5. Open Dedicated EXIF Window
+ipcMain.on('open-exif-window', (event, payload) => {
+    const exifWin = new BrowserWindow({
+        width: 600,
+        height: 700,
+        title: 'EXIF Metadata - ' + payload.filename,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js') // Re-use the same preload
+        }
+    });
+
+    exifWin.setMenuBarVisibility(false); // Make it look clean
+    exifWin.loadFile('exif-window.html');
+
+    // Send the data once the new window is ready
+    exifWin.webContents.once('did-finish-load', () => {
+        exifWin.webContents.send('render-exif', payload);
+    });
+});

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Extended Metadata</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+    <style>
+        /* Override layout rules for this specific window */
+        body { 
+            display: block; 
+            overflow-y: auto; 
+            padding: 25px 35px; 
+            background-color: var(--bg-base);
+        }
+        .header-box {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .header-box h2 { font-size: 20px; margin-bottom: 4px; word-break: break-all; }
+        .header-box p { margin: 0; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .exif-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .exif-table td { padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+        .exif-table td:first-child { width: 35%; color: var(--text-muted); font-weight: 500; }
+        .exif-table td:last-child { width: 65%; color: var(--text-main); word-break: break-all; }
+        .exif-table tr:hover td { background-color: var(--bg-hover); padding-left: 10px; border-radius: 4px; border-bottom-color: transparent;}
+        .exif-table tr td { transition: all 0.15s ease; }
+    </style>
+</head>
+<body>
+    <div class="header-box">
+        <p>Complete ExifTool Output</p>
+        <h2 id="win-filename">Loading Data...</h2>
+    </div>
+
+    <table class="exif-table">
+        <tbody id="win-exif-body"></tbody>
+    </table>
+
+    <script>
+        // Listen for the payload from main.js
+        window.electronAPI.onRenderExif((payload) => {
+            // Match the main app's theme
+            if (payload.theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+
+            document.getElementById('win-filename').textContent = payload.filename;
+            document.title = `EXIF: ${payload.filename}`;
+            
+            const tbody = document.getElementById('win-exif-body');
+            const ignoredKeys = ['SourceFile', 'ExifToolVersion', 'FileName', 'Directory', 'FileSize', 'FileModifyDate', 'FileAccessDate', 'FileInodeChangeDate'];
+            
+            // Generate the rows alphabetically
+            const sortedKeys = Object.keys(payload.exifData).sort();
+            
+            sortedKeys.forEach(key => {
+                const value = payload.exifData[key];
+                if (!ignoredKeys.includes(key) && typeof value !== 'object') {
+                    tbody.innerHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

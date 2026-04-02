@@ -8,9 +8,26 @@ const exifDataCache = new Map();
 // GLOBALS FOR TABLE SELECTION & PREVIEW
 let selectedTableFiles = new Set(); 
 let previewFilePath = null;
-
 let lastClickedNode = null; 
 let isBatchUpdating = false; 
+
+// View Toggles
+let currentViewMode = 'list';
+const viewListBtn = document.getElementById('view-list-btn');
+const viewGridBtn = document.getElementById('view-grid-btn');
+const tableContainer = document.getElementById('table-container');
+const gridContainer = document.getElementById('grid-container');
+
+viewListBtn.addEventListener('click', () => {
+    currentViewMode = 'list';
+    viewListBtn.classList.add('active'); viewGridBtn.classList.remove('active');
+    tableContainer.style.display = 'block'; gridContainer.style.display = 'none';
+});
+viewGridBtn.addEventListener('click', () => {
+    currentViewMode = 'grid';
+    viewGridBtn.classList.add('active'); viewListBtn.classList.remove('active');
+    tableContainer.style.display = 'none'; gridContainer.style.display = 'grid';
+});
 
 function formatSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -28,14 +45,54 @@ function resetInspector() {
     document.getElementById('inspector-multi').style.display = 'none';
 }
 
+function syncSelectionUI() {
+    document.querySelectorAll('#details-body tr').forEach(r => {
+        const p = r.getAttribute('data-path');
+        const cb = r.querySelector('.table-checkbox');
+        if (selectedTableFiles.has(p)) { r.classList.add('selected-row'); cb.checked = true; } 
+        else if (previewFilePath === p && selectedTableFiles.size === 0) { r.classList.add('selected-row'); cb.checked = false; } 
+        else { r.classList.remove('selected-row'); cb.checked = false; }
+    });
+
+    document.querySelectorAll('.grid-item').forEach(item => {
+        const p = item.getAttribute('data-path');
+        const cb = item.querySelector('.grid-checkbox');
+        if (selectedTableFiles.has(p)) { item.classList.add('selected-item'); cb.checked = true; } 
+        else if (previewFilePath === p && selectedTableFiles.size === 0) { item.classList.add('selected-item'); cb.checked = false; } 
+        else { item.classList.remove('selected-item'); cb.checked = false; }
+    });
+
+    const isAllSelected = checkedFiles.size > 0 && selectedTableFiles.size === checkedFiles.size;
+    
+    const tableMasterCb = document.getElementById('master-table-checkbox');
+    if (tableMasterCb) tableMasterCb.checked = isAllSelected;
+
+    const globalMasterCb = document.getElementById('global-master-checkbox');
+    if (globalMasterCb) globalMasterCb.checked = isAllSelected;
+
+    const fetchExifBtn = document.getElementById('fetch-exif-btn');
+    if (fetchExifBtn) {
+        fetchExifBtn.style.display = selectedTableFiles.size > 0 ? 'flex' : 'none';
+    }
+}
+
 function updateDetailsTable() {
     const tbody = document.getElementById('details-body');
+    const gridBody = document.getElementById('grid-container');
     const countLabel = document.getElementById('file-count');
-    const masterCb = document.getElementById('master-table-checkbox'); 
     
+    let hc = document.getElementById('hover-card');
+    if (!hc) {
+        hc = document.createElement('div');
+        hc.id = 'hover-card';
+        hc.className = 'hover-card';
+        hc.style.display = 'none';
+        document.body.appendChild(hc);
+    }
+
     tbody.innerHTML = '';
+    gridBody.innerHTML = '';
     
-    // Safely cleanup memory if files were unchecked in the left sidebar
     let selectionChanged = false;
     for (const path of selectedTableFiles) {
         if (!checkedFiles.has(path)) { selectedTableFiles.delete(path); selectionChanged = true; }
@@ -46,126 +103,99 @@ function updateDetailsTable() {
     if (selectionChanged) loadInspectorData();
     
     const displayFiles = Array.from(checkedFiles.values());
-    masterCb.checked = displayFiles.length > 0 && selectedTableFiles.size === displayFiles.length;
     
     displayFiles.forEach((data) => {
+        const ext = data.extension.toUpperCase();
+        let iconName = 'draft';
+        if (['JPG', 'JPEG', 'PNG', 'GIF', 'SVG', 'WEBP'].includes(ext)) iconName = 'image';
+        else if (['MP4', 'MKV', 'AVI', 'MOV'].includes(ext)) iconName = 'movie';
+        else if (['MP3', 'WAV', 'OGG', 'FLAC'].includes(ext)) iconName = 'audio_file';
+        else if (['PDF'].includes(ext)) iconName = 'picture_as_pdf';
+        else if (['TXT', 'CSV', 'JSON', 'XML'].includes(ext)) iconName = 'description';
+
         const row = document.createElement('tr');
         row.setAttribute('data-path', data.path); 
-        
-        const isSelected = selectedTableFiles.has(data.path);
-        const isPreviewed = previewFilePath === data.path && selectedTableFiles.size === 0;
-        
-        // Highlight the row if it's either checked OR being actively previewed
-        if (isSelected || isPreviewed) row.classList.add('selected-row');
-        
         row.innerHTML = `
-            <td style="text-align: center;">
-                <input type="checkbox" class="table-checkbox" ${isSelected ? 'checked' : ''}>
-            </td>
-            <td title="${data.name}">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <span style="overflow: hidden; text-overflow: ellipsis;">${data.name}</span>
-                    <button class="icon-btn exif-fetch-btn" data-path="${data.path}" title="Fetch Extended Metadata">
-                        <span class="material-symbols-rounded" style="font-size: 15px;">manage_search</span>
-                    </button>
-                </div>
-            </td>
+            <td style="text-align: center;"><input type="checkbox" class="table-checkbox"></td>
+            <td title="${data.name}"><span style="overflow: hidden; text-overflow: ellipsis; display: block; max-width: 100%;">${data.name}</span></td>
             <td>${new Date(data.modified).toLocaleString()}</td>
-            <td>${data.extension.toUpperCase()} File</td>
+            <td>${ext} File</td>
             <td>${formatSize(data.size)}</td>
         `;
-        
-        // ==========================================
-        // SMART PREVIEW vs CHECK LOGIC
-        // ==========================================
-        row.addEventListener('mousedown', (e) => {
+
+        const gridItem = document.createElement('div');
+        gridItem.className = 'grid-item';
+        gridItem.setAttribute('data-path', data.path);
+        gridItem.innerHTML = `
+            <input type="checkbox" class="grid-checkbox">
+            <span class="material-symbols-rounded grid-icon">${iconName}</span>
+            <span class="grid-name" title="${data.name}">${data.name}</span>
+        `;
+
+        gridItem.addEventListener('mouseenter', () => {
+            hc.innerHTML = `
+                <div class="hover-card-title">${data.name}</div>
+                <div class="hover-card-row"><span>Type:</span><span>${ext} File</span></div>
+                <div class="hover-card-row"><span>Size:</span><span>${formatSize(data.size)}</span></div>
+                <div class="hover-card-row"><span>Modified:</span><span>${new Date(data.modified).toLocaleString()}</span></div>
+                ${exifDataCache.has(data.path) ? '<div class="hover-card-row" style="margin-top: 6px; justify-content: center;"><span style="color:var(--gts-purple); font-weight: 600;">★ EXIF Extracted</span></div>' : ''}
+            `;
+            hc.style.display = 'flex';
+            setTimeout(() => hc.style.opacity = '1', 10);
+        });
+        gridItem.addEventListener('mousemove', (e) => {
+            hc.style.left = (e.clientX + 15) + 'px'; 
+            hc.style.top = (e.clientY + 15) + 'px';
+        });
+        gridItem.addEventListener('mouseleave', () => {
+            hc.style.opacity = '0';
+            setTimeout(() => hc.style.display = 'none', 150);
+        });
+
+        const handleInteraction = (e) => {
             if (e.button !== 0) return; 
-            
-            const isCheckboxClick = e.target.classList.contains('table-checkbox');
+            const isCheckboxClick = e.target.classList.contains('table-checkbox') || e.target.classList.contains('grid-checkbox');
             if (isCheckboxClick) e.preventDefault();
 
             let shouldToggleCheck = false;
-
-            // Rule: Check it if they clicked the box, held Ctrl/Cmd, OR if files are already checked
-            if (isCheckboxClick || e.metaKey || e.ctrlKey || selectedTableFiles.size > 0) {
-                shouldToggleCheck = true;
-            }
+            if (isCheckboxClick || e.metaKey || e.ctrlKey || selectedTableFiles.size > 0) shouldToggleCheck = true;
 
             if (shouldToggleCheck) {
                 if (selectedTableFiles.has(data.path)) {
                     selectedTableFiles.delete(data.path);
-                    // UX Detail: If we just unchecked the last file, make it the preview so the right sidebar doesn't flash empty
                     if (selectedTableFiles.size === 0) previewFilePath = data.path;
                 } else {
                     selectedTableFiles.add(data.path);
                     previewFilePath = null;
                 }
             } else {
-                // Rule: If 0 files checked and clicked row text, enter Preview Mode
                 previewFilePath = data.path;
             }
             
-            // Instantly update visual states for ALL rows cleanly
-            document.querySelectorAll('#details-body tr').forEach(r => {
-                const p = r.getAttribute('data-path');
-                const cb = r.querySelector('.table-checkbox');
-
-                if (selectedTableFiles.has(p)) {
-                    r.classList.add('selected-row');
-                    cb.checked = true;
-                } else if (previewFilePath === p && selectedTableFiles.size === 0) {
-                    r.classList.add('selected-row'); // Highlight
-                    cb.checked = false;              // No checkmark!
-                } else {
-                    r.classList.remove('selected-row');
-                    cb.checked = false;
-                }
-            });
-            
-            masterCb.checked = checkedFiles.size > 0 && selectedTableFiles.size === checkedFiles.size;
+            syncSelectionUI();
             loadInspectorData(); 
-        });
+        };
 
-        // NEW: Exif Fetch Button Logic
-        const exifBtn = row.querySelector('.exif-fetch-btn');
-        exifBtn.addEventListener('mousedown', async (e) => {
-            e.stopPropagation(); // Prevents the row from selecting/previewing automatically
-            if (e.button !== 0) return;
-            
-            const icon = exifBtn.querySelector('span');
-            
-            // Loading state
-            icon.textContent = 'hourglass_empty';
-            icon.classList.add('spinning');
-            
-            // Call our Node backend!
-            const result = await window.electronAPI.getExifData(data.path);
-            
-            icon.classList.remove('spinning');
-            
-            if (!result.error) {
-                icon.textContent = 'check_circle';
-                icon.style.color = 'var(--gts-teal)';
-                exifDataCache.set(data.path, result); // Save to temporary session memory
-                
-                // If the user is currently looking at this file, refresh the sidebar
-                if (previewFilePath === data.path || selectedTableFiles.has(data.path)) {
-                    loadInspectorData();
-                }
-            } else {
-                icon.textContent = 'error';
-                icon.style.color = '#f48771';
-            }
-        });
+        row.addEventListener('mousedown', handleInteraction);
+        gridItem.addEventListener('mousedown', handleInteraction);
 
         tbody.appendChild(row);
+        gridBody.appendChild(gridItem);
     });
     
+    syncSelectionUI(); 
     countLabel.textContent = `${checkedFiles.size} items listed`;
     
     const unselectAllBtn = document.getElementById('unselect-all-btn');
-    if (checkedFiles.size > 0) unselectAllBtn.style.display = 'flex';
-    else unselectAllBtn.style.display = 'none';
+    const globalSelectContainer = document.getElementById('global-select-all-container');
+    
+    if (checkedFiles.size > 0) {
+        unselectAllBtn.style.display = 'flex';
+        globalSelectContainer.style.display = 'flex';
+    } else {
+        unselectAllBtn.style.display = 'none';
+        globalSelectContainer.style.display = 'none';
+    }
     
     if (checkedFiles.size === 0) resetInspector();
 }
@@ -308,9 +338,7 @@ async function loadRootDirectory(path) {
     await renderDirectory(path, fileTree);
 }
 
-// ==========================================
 // EVENT LISTENERS & UI CONTROLS
-// ==========================================
 folderInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { const path = folderInput.value.trim(); if (path) loadRootDirectory(path); } });
 document.addEventListener('dragover', (e) => { e.preventDefault(); dragOverlay.classList.add('active'); });
 document.addEventListener('dragleave', (e) => { e.preventDefault(); if (e.relatedTarget === null || e.target === dragOverlay) dragOverlay.classList.remove('active'); });
@@ -325,23 +353,46 @@ document.getElementById('unselect-all-btn').addEventListener('click', () => {
     updateDetailsTable();
 });
 
-// MIDDLE TABLE MASTER CHECKBOX LOGIC
-document.getElementById('master-table-checkbox').addEventListener('change', (e) => {
+// UNIFIED MASTER CHECKBOX LOGIC
+const handleMasterCheckbox = (e) => {
     if (e.target.checked) {
         checkedFiles.forEach((data, path) => selectedTableFiles.add(path));
         previewFilePath = null;
     } else {
         selectedTableFiles.clear();
     }
-    
-    document.querySelectorAll('#details-body tr').forEach(row => {
-        const path = row.getAttribute('data-path');
-        const checkbox = row.querySelector('.table-checkbox');
-        if (selectedTableFiles.has(path)) { row.classList.add('selected-row'); checkbox.checked = true; } 
-        else { row.classList.remove('selected-row'); checkbox.checked = false; }
-    });
-
+    syncSelectionUI();
     loadInspectorData(); 
+};
+
+document.getElementById('master-table-checkbox').addEventListener('change', handleMasterCheckbox);
+document.getElementById('global-master-checkbox').addEventListener('change', handleMasterCheckbox);
+
+
+// BATCH EXIF FETCH LOGIC
+document.getElementById('fetch-exif-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    
+    btn.style.pointerEvents = 'none';
+    btn.innerHTML = `<span class="material-symbols-rounded spinning" style="font-size: 14px; margin-right: 4px;">hourglass_empty</span> Fetching...`;
+    document.body.style.cursor = 'wait';
+    
+    const promises = Array.from(selectedTableFiles).map(async (path) => {
+        if (!exifDataCache.has(path)) {
+            const result = await window.electronAPI.getExifData(path);
+            if (!result.error) {
+                exifDataCache.set(path, result);
+            }
+        }
+    });
+    
+    await Promise.all(promises);
+    
+    document.body.style.cursor = 'default';
+    btn.innerHTML = `<span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">manage_search</span> Fetch EXIF`;
+    btn.style.pointerEvents = 'auto';
+    
+    loadInspectorData();
 });
 
 // RESIZER LOGIC
@@ -361,9 +412,7 @@ document.addEventListener('mouseup', () => {
     if (isResizingLeft || isResizingRight) { isResizingLeft = false; isResizingRight = false; document.body.style.cursor = 'default'; resizerLeft.classList.remove('active'); resizerRight.classList.remove('active'); }
 });
 
-// ==========================================
 // RIGHT SIDEBAR INSPECTOR LOGIC
-// ==========================================
 const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
 const inspectorEmpty = document.getElementById('inspector-empty');
 const inspectorContent = document.getElementById('inspector-content');
@@ -421,7 +470,6 @@ async function loadInspectorData() {
     else if (selectedTableFiles.size === 1 || (selectedTableFiles.size === 0 && previewFilePath)) {
         document.body.style.cursor = 'wait';
         
-        // Fetch the target path whether it's the 1 checked file, or the 1 previewed file
         const targetPath = selectedTableFiles.size === 1 ? Array.from(selectedTableFiles)[0] : previewFilePath;
         const details = await window.electronAPI.getFileDetails(targetPath);
         document.body.style.cursor = 'default';
@@ -441,19 +489,13 @@ async function loadInspectorData() {
         document.getElementById('meta-modified').textContent = new Date(details.modified).toLocaleString();
         document.getElementById('meta-path').textContent = details.path;
 
-        // ... previous code ...
-        document.getElementById('meta-modified').textContent = new Date(details.modified).toLocaleString();
-        document.getElementById('meta-path').textContent = details.path;
-
-        // NEW: Populate EXIF data if it exists in our session cache
         const exifSection = document.getElementById('exif-section');
         const exifList = document.getElementById('exif-data-list');
         
         if (exifDataCache.has(targetPath)) {
             const exifData = exifDataCache.get(targetPath);
-            exifList.innerHTML = ''; // Clear old data
+            exifList.innerHTML = ''; 
             
-            // Filter out basic OS details that ExifTool repeats, leaving the juicy extended metadata
             const ignoredKeys = ['SourceFile', 'ExifToolVersion', 'FileName', 'Directory', 'FileSize', 'FileModifyDate', 'FileAccessDate', 'FileInodeChangeDate'];
             
             for (const [key, value] of Object.entries(exifData)) {
@@ -462,11 +504,20 @@ async function loadInspectorData() {
                 }
             }
             exifSection.style.display = 'block';
+
+            const expandBtn = document.getElementById('expand-exif-btn');
+            expandBtn.onclick = () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                window.electronAPI.openExifWindow({
+                    filename: details.name,
+                    exifData: exifData,
+                    theme: currentTheme
+                });
+            };
+
         } else {
             exifSection.style.display = 'none';
         }
-
-        inspectorContent.style.display = 'flex';
 
         inspectorContent.style.display = 'flex';
     } 
@@ -476,9 +527,7 @@ async function loadInspectorData() {
     }
 }
 
-// ==========================================
 // THEME TOGGLE LOGIC
-// ==========================================
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const themeIcon = document.getElementById('theme-icon');
 
@@ -487,9 +536,9 @@ themeToggleBtn.addEventListener('click', () => {
     
     if (root.getAttribute('data-theme') === 'dark') {
         root.removeAttribute('data-theme');
-        themeIcon.textContent = 'dark_mode'; // Show moon icon
+        themeIcon.textContent = 'dark_mode';
     } else {
         root.setAttribute('data-theme', 'dark');
-        themeIcon.textContent = 'light_mode'; // Show sun icon
+        themeIcon.textContent = 'light_mode'; 
     }
 });
