@@ -1,152 +1,658 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <title>GTS Meta Studio</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    
-    <link rel="stylesheet" href="./styles.css">
-</head>
-<body>
-    <div id="drag-overlay"><h2>Drop Folder Anywhere to Load</h2></div>
+    <head>
+        <meta charset="UTF-8" />
+        <title>GTS Meta Studio</title>
 
-    <div class="sidebar-left">
-        <div class="folder-input-container" style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="folder-path-input" placeholder="Paste path and press Enter..." style="flex: 1;">
-            <button id="theme-toggle-btn" class="icon-btn" title="Toggle Theme" style="padding: 8px;">
-                <span class="material-symbols-rounded" id="theme-icon" style="font-size: 18px;">dark_mode</span>
-            </button>
-        </div>
-        <div id="file-tree">
-            <div class="empty-state">
-                <span class="material-symbols-rounded">folder_open</span>
-                Drag a folder here, or paste a path above and press <strong>Enter</strong>.
-            </div>
-        </div>
-    </div>
-    
-    <div class="resizer" id="resizer-left"></div>
-    
-    <div class="main-content">
-        <div id="main-empty-state" class="main-empty-state">
-            <span class="material-symbols-rounded">drive_folder_upload</span>
-            <h2>Welcome to GTS Meta Studio</h2>
-            <p>Import a folder using the sidebar or drag and drop it anywhere to get started.</p>
-        </div>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+            rel="stylesheet"
+        />
 
-        <div id="main-table-view" style="display: none; height: 100%; flex-direction: column;">
-            <div class="content-header">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <h2 style="margin: 0;">Selected Files</h2>
-                    <span id="file-count" style="color: var(--text-muted); font-size: 13px; font-weight: 500;">0 items selected</span>
-                    
-                    <label id="global-select-all-container" style="display: none; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--text-muted); cursor: pointer; border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; transition: all 0.2s;">
-                        <input type="checkbox" id="global-master-checkbox" style="cursor: pointer; width: 13px; height: 13px; accent-color: var(--gts-teal); margin: 0;">
-                        Select All
-                    </label>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
 
-                    <button id="unselect-all-btn" class="icon-btn" style="display: none; font-size: 11px; padding: 4px 10px; border-radius: 4px;">
-                        <span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">deselect</span> Clear All
+        <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+        <div id="app-launcher" class="app-launcher">
+            <div class="launcher-shell">
+                <div>
+                    <p class="launcher-kicker">GTS Meta Studio</p>
+                    <h1>Choose a workspace</h1>
+                </div>
+                <div class="launcher-grid">
+                    <button id="open-metadata-mode" class="launcher-card">
+                        <span class="material-symbols-rounded"
+                            >manage_search</span
+                        >
+                        <strong>EXIF Metadata Studio</strong>
+                        <small
+                            >Browse files, fetch metadata, edit fields, paste
+                            metadata, and randomize dates.</small
+                        >
                     </button>
-                    
-                    <button id="fetch-exif-btn" class="icon-btn" style="display: none; font-size: 11px; padding: 4px 10px; border-radius: 4px;">
-                        <span class="material-symbols-rounded" style="font-size: 14px; margin-right: 4px;">manage_search</span> Fetch EXIF
+                    <button id="open-converter-mode" class="launcher-card">
+                        <span class="material-symbols-rounded"
+                            >published_with_changes</span
+                        >
+                        <strong>File Converter</strong>
+                        <small
+                            >Convert image and video files into formats like
+                            PNG, WebP, TIFF, AVIF, MP4, MOV, and WebM.</small
+                        >
                     </button>
                 </div>
-                
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="display: flex; background: var(--bg-hover); border-radius: 6px; padding: 3px;">
-                        <button id="view-list-btn" class="icon-btn active" style="padding: 4px 8px;" title="List View"><span class="material-symbols-rounded" style="font-size: 16px;">view_list</span></button>
-                        <button id="view-grid-btn" class="icon-btn" style="padding: 4px 8px;" title="Grid View"><span class="material-symbols-rounded" style="font-size: 16px;">grid_view</span></button>
+            </div>
+        </div>
+
+        <div id="drag-overlay"><h2>Drop Folder Anywhere to Load</h2></div>
+
+        <div class="sidebar-left metadata-pane">
+            <div
+                class="folder-input-container"
+                style="display: flex; gap: 8px; align-items: center"
+            >
+                <button
+                    id="metadata-back-btn"
+                    class="icon-btn"
+                    title="Back to workspace chooser"
+                    style="padding: 8px"
+                >
+                    <span
+                        class="material-symbols-rounded"
+                        style="font-size: 18px"
+                        >arrow_back</span
+                    >
+                </button>
+
+                <input
+                    type="text"
+                    id="folder-path-input"
+                    placeholder="Paste path and press Enter..."
+                    style="flex: 1"
+                />
+
+                <button
+                    id="theme-toggle-btn"
+                    class="icon-btn"
+                    title="Toggle Theme"
+                    style="padding: 8px"
+                >
+                    <span
+                        class="material-symbols-rounded"
+                        id="theme-icon"
+                        style="font-size: 18px"
+                        >dark_mode</span
+                    >
+                </button>
+            </div>
+            <div class="filter-strip">
+                <input
+                    type="text"
+                    id="sidebar-filter-input"
+                    class="filter-input"
+                    placeholder="Filter files, e.g. .pdf"
+                />
+                <button
+                    id="select-filtered-btn"
+                    class="icon-btn"
+                    title="Select matching files"
+                >
+                    <span class="material-symbols-rounded"
+                        >playlist_add_check</span
+                    >
+                </button>
+            </div>
+            <div id="file-tree">
+                <div class="empty-state">
+                    <span class="material-symbols-rounded">folder_open</span>
+                    Drag a folder here, or paste a path above and press
+                    <strong>Enter</strong>.
+                </div>
+            </div>
+        </div>
+
+        <div class="resizer metadata-pane" id="resizer-left"></div>
+
+        <div class="main-content metadata-pane">
+            <div id="main-empty-state" class="main-empty-state">
+                <span class="material-symbols-rounded"
+                    >drive_folder_upload</span
+                >
+                <h2>Welcome to GTS Meta Studio</h2>
+                <p>
+                    Import a folder using the sidebar or drag and drop it
+                    anywhere to get started.
+                </p>
+            </div>
+
+            <div
+                id="main-table-view"
+                style="display: none; height: 100%; flex-direction: column"
+            >
+                <div class="content-header">
+                    <div style="display: flex; align-items: center; gap: 15px">
+                        <h2 style="margin: 0">Selected Files</h2>
+                        <span
+                            id="file-count"
+                            style="
+                                color: var(--text-muted);
+                                font-size: 13px;
+                                font-weight: 500;
+                            "
+                            >0 items selected</span
+                        >
+
+                        <label
+                            id="global-select-all-container"
+                            style="
+                                display: none;
+                                align-items: center;
+                                gap: 6px;
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: var(--text-muted);
+                                cursor: pointer;
+                                border: 1px solid var(--border-color);
+                                padding: 4px 8px;
+                                border-radius: 4px;
+                                transition: all 0.2s;
+                            "
+                        >
+                            <input
+                                type="checkbox"
+                                id="global-master-checkbox"
+                                style="
+                                    cursor: pointer;
+                                    width: 13px;
+                                    height: 13px;
+                                    accent-color: var(--gts-teal);
+                                    margin: 0;
+                                "
+                            />
+                            Select All
+                        </label>
+
+                        <button
+                            id="unselect-all-btn"
+                            class="icon-btn"
+                            style="
+                                display: none;
+                                font-size: 11px;
+                                padding: 4px 10px;
+                                border-radius: 4px;
+                            "
+                        >
+                            <span
+                                class="material-symbols-rounded"
+                                style="font-size: 14px; margin-right: 4px"
+                                >deselect</span
+                            >
+                            Clear All
+                        </button>
+
+                        <button
+                            id="fetch-exif-btn"
+                            class="icon-btn"
+                            style="
+                                display: none;
+                                font-size: 11px;
+                                padding: 4px 10px;
+                                border-radius: 4px;
+                            "
+                        >
+                            <span
+                                class="material-symbols-rounded"
+                                style="font-size: 14px; margin-right: 4px"
+                                >manage_search</span
+                            >
+                            Fetch EXIF
+                        </button>
                     </div>
-                    
-                    <button id="toggle-sidebar-btn" class="icon-btn active" title="Toggle Inspector">
-                        <span class="material-symbols-rounded">dock_to_left</span>
+
+                    <div style="display: flex; align-items: center; gap: 10px">
+                        <div class="middle-filter">
+                            <span class="material-symbols-rounded">search</span>
+                            <input
+                                type="text"
+                                id="middle-filter-input"
+                                placeholder="Filter selected files"
+                            />
+                        </div>
+                        <div
+                            style="
+                                display: flex;
+                                background: var(--bg-hover);
+                                border-radius: 6px;
+                                padding: 3px;
+                            "
+                        >
+                            <button
+                                id="view-list-btn"
+                                class="icon-btn active"
+                                style="padding: 4px 8px"
+                                title="List View"
+                            >
+                                <span
+                                    class="material-symbols-rounded"
+                                    style="font-size: 16px"
+                                    >view_list</span
+                                >
+                            </button>
+                            <button
+                                id="view-grid-btn"
+                                class="icon-btn"
+                                style="padding: 4px 8px"
+                                title="Grid View"
+                            >
+                                <span
+                                    class="material-symbols-rounded"
+                                    style="font-size: 16px"
+                                    >grid_view</span
+                                >
+                            </button>
+                        </div>
+
+                        <button
+                            id="toggle-sidebar-btn"
+                            class="icon-btn active"
+                            title="Toggle Inspector"
+                        >
+                            <span class="material-symbols-rounded"
+                                >dock_to_left</span
+                            >
+                        </button>
+                    </div>
+                </div>
+
+                <div id="table-container" class="table-container">
+                    <table id="details-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center">
+                                    <input
+                                        type="checkbox"
+                                        id="master-table-checkbox"
+                                        style="
+                                            cursor: pointer;
+                                            width: 14px;
+                                            height: 14px;
+                                            accent-color: var(--gts-teal);
+                                        "
+                                    />
+                                </th>
+                                <th>Name</th>
+                                <th>Date Modified</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="details-body"></tbody>
+                    </table>
+                </div>
+
+                <div
+                    id="grid-container"
+                    class="grid-container"
+                    style="display: none"
+                ></div>
+            </div>
+        </div>
+
+        <div class="resizer metadata-pane" id="resizer-right"></div>
+
+        <div class="sidebar-right metadata-pane" id="sidebar-right">
+            <div
+                id="inspector-empty"
+                class="empty-state"
+                style="margin-top: 50%"
+            >
+                <span class="material-symbols-rounded">info</span>
+                Select a file to view details
+            </div>
+
+            <div
+                id="inspector-content"
+                style="display: none; flex-direction: column; height: 100%"
+            >
+                <div class="thumbnail-container">
+                    <img
+                        id="meta-img"
+                        src=""
+                        style="
+                            display: none;
+                            max-width: 100%;
+                            max-height: 200px;
+                            border-radius: 6px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                        "
+                    />
+                    <span
+                        id="meta-icon"
+                        class="material-symbols-rounded"
+                        style="
+                            display: none;
+                            font-size: 80px;
+                            color: var(--gts-teal);
+                        "
+                        >draft</span
+                    >
+                </div>
+
+                <h3
+                    id="meta-name"
+                    style="
+                        margin: 20px 0 10px 0;
+                        font-size: 15px;
+                        word-break: break-all;
+                        line-height: 1.4;
+                    "
+                >
+                    Filename
+                </h3>
+
+                <div class="meta-list">
+                    <div class="meta-item">
+                        <span>Kind</span><span id="meta-kind">...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>Size</span><span id="meta-size">...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>Created</span><span id="meta-created">...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>Modified</span><span id="meta-modified">...</span>
+                    </div>
+                    <div
+                        class="meta-item"
+                        style="
+                            flex-direction: column;
+                            align-items: flex-start;
+                            margin-top: 15px;
+                        "
+                    >
+                        <span style="margin-bottom: 4px">Location</span>
+                        <span
+                            id="meta-path"
+                            style="font-size: 11px; word-break: break-all"
+                            >...</span
+                        >
+                    </div>
+                </div>
+                <div
+                    id="exif-section"
+                    style="
+                        display: none;
+                        margin-top: 20px;
+                        border-top: 1px solid var(--border-color);
+                        padding-top: 15px;
+                    "
+                >
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 10px;
+                        "
+                    >
+                        <h4
+                            style="
+                                margin: 0;
+                                font-size: 11px;
+                                color: var(--text-muted);
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                            "
+                        >
+                            Extended EXIF Data
+                        </h4>
+                        <button
+                            id="expand-exif-btn"
+                            class="icon-btn"
+                            title="Open in New Window"
+                            style="padding: 2px 6px"
+                        >
+                            <span
+                                class="material-symbols-rounded"
+                                style="font-size: 14px"
+                                >open_in_new</span
+                            >
+                        </button>
+                    </div>
+                    <div
+                        id="exif-data-list"
+                        style="
+                            font-size: 11px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 6px;
+                            overflow-y: auto;
+                            max-height: 200px;
+                            padding-right: 5px;
+                        "
+                    ></div>
+                </div>
+            </div>
+
+            <div
+                id="inspector-multi"
+                style="
+                    display: none;
+                    flex-direction: column;
+                    height: 100%;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    padding: 20px;
+                "
+            >
+                <span
+                    class="material-symbols-rounded"
+                    style="
+                        font-size: 56px;
+                        color: var(--gts-teal);
+                        margin-bottom: 15px;
+                        opacity: 0.8;
+                    "
+                    >collections_bookmark</span
+                >
+                <h3
+                    id="multi-count"
+                    style="
+                        margin: 0 0 8px 0;
+                        font-size: 18px;
+                        color: var(--text-main);
+                    "
+                >
+                    Multiple Files
+                </h3>
+                <p
+                    id="multi-size"
+                    style="
+                        color: var(--text-muted);
+                        font-size: 13px;
+                        margin: 0 0 25px 0;
+                    "
+                >
+                    Total Size: ...
+                </p>
+                <button
+                    id="multi-preview-exif-btn"
+                    class="icon-btn"
+                    style="display: none; margin-bottom: 20px"
+                >
+                    <span
+                        class="material-symbols-rounded"
+                        style="font-size: 16px; margin-right: 6px"
+                        >open_in_new</span
+                    >
+                    Preview EXIF
+                </button>
+
+                <div style="width: 100%; text-align: left">
+                    <span
+                        style="
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: var(--text-muted);
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        "
+                        >Breakdown</span
+                    >
+                    <div
+                        id="multi-types"
+                        style="
+                            margin-top: 8px;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 4px;
+                            background: var(--bg-base);
+                            padding: 12px;
+                            border-radius: 6px;
+                            border: 1px solid var(--border-color);
+                            max-height: 300px;
+                            overflow-y: auto;
+                        "
+                    ></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="converter-workspace" class="converter-workspace">
+            <div class="converter-sidebar">
+                <div class="folder-input-container converter-topbar">
+                    <button
+                        id="converter-back-btn"
+                        class="icon-btn"
+                        title="Back to workspace chooser"
+                    >
+                        <span class="material-symbols-rounded">arrow_back</span>
+                    </button>
+                    <input
+                        type="text"
+                        id="converter-folder-input"
+                        placeholder="Paste folder path and press Enter..."
+                    />
+                </div>
+                <div id="converter-drop-zone" class="converter-drop-zone">
+                    <span class="material-symbols-rounded"
+                        >drive_folder_upload</span
+                    >
+                    <strong>Drop a folder here</strong>
+                    <span>or paste a path above</span>
+                </div>
+                <div class="filter-strip">
+                    <input
+                        type="text"
+                        id="converter-filter-input"
+                        class="filter-input"
+                        placeholder="Filter media, e.g. .jpg"
+                    />
+                </div>
+                <div id="converter-file-list" class="converter-file-list"></div>
+            </div>
+
+            <div class="converter-main">
+                <div class="converter-header">
+                    <div>
+                        <p class="launcher-kicker">File Converter</p>
+                        <h2>Convert image and video formats</h2>
+                    </div>
+                    <span id="converter-count" class="status-pill"
+                        >0 files selected</span
+                    >
+                </div>
+
+                <div class="converter-controls">
+                    <label>
+                        Convert To
+                        <select id="converter-format-select">
+                            <optgroup label="Images">
+                                <option value="png">PNG</option>
+                                <option value="jpg">JPG</option>
+                                <option value="webp">WebP</option>
+                                <option value="tiff">TIFF</option>
+                                <option value="avif">AVIF</option>
+                                <option value="heic">HEIC</option>
+                                <option value="bmp">BMP</option>
+                            </optgroup>
+                            <optgroup label="Videos">
+                                <option value="mp4">MP4</option>
+                                <option value="mov">MOV</option>
+                                <option value="webm">WebM</option>
+                                <option value="mkv">MKV</option>
+                                <option value="avi">AVI</option>
+                                <option value="m4v">M4V</option>
+                            </optgroup>
+                        </select>
+                    </label>
+                    <button id="converter-select-visible-btn" class="icon-btn">
+                        <span
+                            class="material-symbols-rounded"
+                            style="font-size: 16px; margin-right: 6px"
+                            >select_all</span
+                        >
+                        Select Visible
+                    </button>
+                    <button id="converter-clear-btn" class="icon-btn">
+                        <span
+                            class="material-symbols-rounded"
+                            style="font-size: 16px; margin-right: 6px"
+                            >deselect</span
+                        >
+                        Clear
+                    </button>
+                    <button id="converter-start-btn" class="icon-btn active">
+                        <span
+                            class="material-symbols-rounded"
+                            style="font-size: 16px; margin-right: 6px"
+                            >published_with_changes</span
+                        >
+                        Convert
                     </button>
                 </div>
-            </div>
-            
-            <div id="table-container" class="table-container">
-                <table id="details-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px; text-align: center;">
-                                <input type="checkbox" id="master-table-checkbox" style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--gts-teal);">
-                            </th>
-                            <th>Name</th>
-                            <th>Date Modified</th>
-                            <th>Type</th>
-                            <th>Size</th>
-                        </tr>
-                    </thead>
-                    <tbody id="details-body">
-                    </tbody>
-                </table>
-            </div>
 
-            <div id="grid-container" class="grid-container" style="display: none;">
+                <div id="converter-empty-state" class="main-empty-state">
+                    <span class="material-symbols-rounded">perm_media</span>
+                    <h2>No folder loaded</h2>
+                    <p>
+                        Drop a folder into the converter sidebar or paste a path
+                        to scan image and video files.
+                    </p>
                 </div>
-        </div>
-    </div>
-    
-    <div class="resizer" id="resizer-right"></div>
-    
-    <div class="sidebar-right" id="sidebar-right">
-        <div id="inspector-empty" class="empty-state" style="margin-top: 50%;">
-            <span class="material-symbols-rounded">info</span>
-            Select a file to view details
-        </div>
 
-        <div id="inspector-content" style="display: none; flex-direction: column; height: 100%;">
-            <div class="thumbnail-container">
-                <img id="meta-img" src="" style="display: none; max-width: 100%; max-height: 200px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <span id="meta-icon" class="material-symbols-rounded" style="display: none; font-size: 80px; color: var(--gts-teal);">draft</span>
-            </div>
-            
-            <h3 id="meta-name" style="margin: 20px 0 10px 0; font-size: 15px; word-break: break-all; line-height: 1.4;">Filename</h3>
-            
-            <div class="meta-list">
-                <div class="meta-item"><span>Kind</span><span id="meta-kind">...</span></div>
-                <div class="meta-item"><span>Size</span><span id="meta-size">...</span></div>
-                <div class="meta-item"><span>Created</span><span id="meta-created">...</span></div>
-                <div class="meta-item"><span>Modified</span><span id="meta-modified">...</span></div>
-                <div class="meta-item" style="flex-direction: column; align-items: flex-start; margin-top: 15px;">
-                    <span style="margin-bottom: 4px;">Location</span>
-                    <span id="meta-path" style="font-size: 11px; word-break: break-all;">...</span>
-                </div>
-            </div>
-            <div id="exif-section" style="display: none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h4 style="margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Extended EXIF Data</h4>
-                    <button id="expand-exif-btn" class="icon-btn" title="Open in New Window" style="padding: 2px 6px;">
-                        <span class="material-symbols-rounded" style="font-size: 14px;">open_in_new</span>
-                    </button>
-                </div>
-                <div id="exif-data-list" style="font-size: 11px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px; padding-right: 5px;">
-                </div>
+                <div id="converter-results" class="converter-results"></div>
             </div>
         </div>
 
-        <div id="inspector-multi" style="display: none; flex-direction: column; height: 100%; align-items: center; justify-content: center; text-align: center; padding: 20px;">
-            <span class="material-symbols-rounded" style="font-size: 56px; color: var(--gts-teal); margin-bottom: 15px; opacity: 0.8;">collections_bookmark</span>
-            <h3 id="multi-count" style="margin: 0 0 8px 0; font-size: 18px; color: var(--text-main);">Multiple Files</h3>
-            <p id="multi-size" style="color: var(--text-muted); font-size: 13px; margin: 0 0 25px 0;">Total Size: ...</p>
+        <div id="hover-card" class="hover-card" style="display: none"></div>
+
+        <div id="progress-modal" class="progress-modal">
+        <div class="progress-box">
+            <h3 id="progress-title">Processing...</h3>
+            <div class="progress-bar-bg"><div id="progress-fill" class="progress-bar-fill"></div></div>
+            <div class="progress-stats">
+                <span id="progress-percent">0%</span>
+                <span id="progress-count">0 / 0</span>
+            </div>
+            <div id="progress-detail" class="progress-detail" style="margin-bottom: 20px;">Preparing...</div>
             
-            <div style="width: 100%; text-align: left;">
-                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Breakdown</span>
-                <div id="multi-types" style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px; background: var(--bg-base); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); max-height: 300px; overflow-y: auto;">
-                </div>
+            <div style="text-align: center;">
+                <button id="cancel-progress-btn" class="icon-btn" style="display: inline-flex; justify-content: center; padding: 6px 16px; border-color: #f87171; color: #ef4444; width: 100%;">
+                    <span class="material-symbols-rounded" style="font-size: 16px; margin-right: 6px;">cancel</span> Cancel Task
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="hover-card" class="hover-card" style="display: none;"></div>
-
-    <script src="./renderer.js"></script>
-</body>
+        <script src="./renderer.js"></script>
+    </body>
 </html>
