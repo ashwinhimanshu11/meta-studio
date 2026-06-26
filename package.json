@@ -1,17 +1,42 @@
 {
   "name": "gts-meta-studio",
   "version": "1.0.0",
-  "description": "",
+  "description": "Metadata and Media Conversion Studio",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "start": "electron .",
+    "build:win": "electron-builder --win"
   },
   "keywords": [],
-  "author": "",
+  "author": "GTS",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^41.1.0"
+    "electron": "^41.1.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.gts.metastudio",
+    "productName": "GTS Meta Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   }
 }

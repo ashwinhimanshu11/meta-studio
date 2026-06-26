@@ -24,27 +24,23 @@ ipcMain.on('cancel-task', () => {
 // HELPERS
 // ==========================================
 function getExiftoolPath() {
-  let platformFolder = "linux";
-  let executableName = "exiftool";
-  if (process.platform === "win32") {
-    platformFolder = "win";
-    executableName = "exiftool.exe";
-  } else if (process.platform === "darwin") {
-    platformFolder = "mac";
-  }
-  return path.join(__dirname, "bin", platformFolder, executableName);
+    let platformFolder = 'linux';
+    let executableName = 'exiftool';
+    if (process.platform === 'win32') { platformFolder = 'win'; executableName = 'exiftool.exe'; } 
+    else if (process.platform === 'darwin') { platformFolder = 'mac'; }
+
+    const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
+    return path.join(baseDir, 'bin', platformFolder, executableName);
 }
 
 function getBundledBinaryPath(binaryName) {
-  let platformFolder = "linux";
-  let executableName = binaryName;
-  if (process.platform === "win32") {
-    platformFolder = "win";
-    executableName = `${binaryName}.exe`;
-  } else if (process.platform === "darwin") {
-    platformFolder = "mac";
-  }
-  return path.join(__dirname, "bin", platformFolder, executableName);
+    let platformFolder = 'linux';
+    let executableName = binaryName;
+    if (process.platform === 'win32') { platformFolder = 'win'; executableName = `${binaryName}.exe`; } 
+    else if (process.platform === 'darwin') { platformFolder = 'mac'; }
+
+    const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
+    return path.join(baseDir, 'bin', platformFolder, executableName);
 }
 
 function normalizeExtension(filePath) {
@@ -220,17 +216,18 @@ async function cleanupExifBackups(processedPaths, revert = false) {
 }
 
 function setBinaryPermissions() {
-  if (process.platform === "win32") return;
-  const osFolder = process.platform === "darwin" ? "mac" : "linux";
-  const binaries = ["exiftool", "ffmpeg", "ffprobe"];
-  binaries.forEach((binary) => {
-    const binaryPath = path.join(__dirname, "bin", osFolder, binary);
-    if (fs.existsSync(binaryPath)) {
-      try {
-        fs.chmodSync(binaryPath, 0o755);
-      } catch (err) {}
-    }
-  });
+    if (process.platform === 'win32') return;
+    const osFolder = process.platform === 'darwin' ? 'mac' : 'linux';
+    const binaries = ['exiftool', 'ffmpeg', 'ffprobe'];
+    
+    const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
+
+    binaries.forEach(binary => {
+        const binaryPath = path.join(baseDir, 'bin', osFolder, binary);
+        if (fs.existsSync(binaryPath)) {
+            try { fs.chmodSync(binaryPath, 0o755); } catch (err) {}
+        }
+    });
 }
 
 function createWindow() {
