@@ -10,3 +10,5 @@ application to perform multiple file operations
 02-04-26: changed the functionality for exiftool meta, added grid layout, added a preview window for exiftool meta
 
 23-06-26: added file conversion window, added file conversion features, added progress bars, fixed bugs
+
+26-05-26: made the application modular
