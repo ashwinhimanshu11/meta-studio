@@ -33,26 +33,50 @@ body {
     letter-spacing: 0.2px;
 }
 
-.metadata-pane,
-.converter-workspace {
-    display: none;
+/* =========================================
+   Workspace Routing Visibility
+   ========================================= */
+
+/* 1. App Launcher */
+body[data-mode="metadata"] #app-launcher,
+body[data-mode="converter"] #app-launcher {
+    display: none !important;
 }
 
-body[data-mode="metadata"] .metadata-pane {
-    display: flex;
+/* 2. METADATA WORKSPACE (Strictly direct children) */
+/* By using '>', we ensure we don't accidentally hide the Converter's inner panels */
+body:not([data-mode="metadata"]) > .sidebar-left,
+body:not([data-mode="metadata"]) > .main-content,
+body:not([data-mode="metadata"]) > .sidebar-right,
+body:not([data-mode="metadata"]) > .resizer {
+    display: none !important;
 }
 
-body[data-mode="metadata"] .sidebar-right {
-    display: block;
+body[data-mode="metadata"] {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+}
+
+body[data-mode="metadata"] > .main-content {
+    flex: 1;
+    height: 100vh;
+}
+
+/* 3. CONVERTER WORKSPACE */
+body:not([data-mode="converter"]) .converter-workspace {
+    display: none !important;
 }
 
 body[data-mode="converter"] .converter-workspace {
-    display: flex;
-}
-
-body[data-mode="metadata"] #app-launcher,
-body[data-mode="converter"] #app-launcher {
-    display: none;
+    display: flex !important;
+    flex-direction: row;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .app-launcher {
