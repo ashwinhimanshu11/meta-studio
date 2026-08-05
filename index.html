@@ -24,6 +24,27 @@
     </script>
   </head>
   <body>
+    <!-- Elegant Minimal Splash Screen -->
+    <div id="splash-screen">
+      <div class="splash-content">
+        <h1>GTS META STUDIO</h1>
+        <div class="splash-progress">
+          <div class="splash-progress-bar"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      window.addEventListener('load', () => {
+        // Keep splash screen visible for a short elegant duration before fading out
+        setTimeout(() => {
+          const splash = document.getElementById('splash-screen');
+          if (splash) {
+            splash.classList.add('hidden');
+          }
+        }, 1800);
+      });
+    </script>
+
     <div id="app-launcher" class="app-launcher">
       <button
         class="icon-btn global-settings-btn"

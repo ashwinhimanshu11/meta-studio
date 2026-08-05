@@ -22,6 +22,59 @@
 /* =========================================
    Global Reset & Layout
    ========================================= */
+/* Splash Screen */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+#splash-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+.splash-content h1 {
+    font-size: 16px;
+    font-weight: 300;
+    letter-spacing: 6px;
+    margin: 0;
+    opacity: 0;
+    animation: fadeAndSlideUp 1.2s ease forwards;
+}
+@keyframes fadeAndSlideUp {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+.splash-progress {
+    width: 100%;
+    height: 1px;
+    background-color: var(--border-color);
+    margin-top: 24px;
+    opacity: 0;
+    overflow: hidden;
+    animation: fadeAndSlideUp 1.2s ease forwards;
+    animation-delay: 0.2s;
+}
+.splash-progress-bar {
+    width: 0%;
+    height: 100%;
+    background-color: var(--text-main);
+    animation: loadProgress 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    animation-delay: 0.3s;
+}
+@keyframes loadProgress {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
 body {
     font-family: "Poppins", sans-serif;
     margin: 0;
@@ -948,7 +1001,9 @@ tr:hover .exif-fetch-btn {
     --gts-purple: #c026d3; /* Darker pink/purple */
     --gts-blue: #3b82f6; /* Darker blue */
     --gts-teal: #0d9488;
-    --gts-gradient: linear-gradient(135deg, var(--gts-purple), var(--gts-blue));
+    
+    /* Remove gradient in dark mode for a cleaner look */
+    --gts-gradient: var(--gts-blue);
 
     /* Deep Dark Base (Much darker greys) */
     --bg-base: #050505;
@@ -975,13 +1030,13 @@ tr:hover .exif-fetch-btn {
     border-color: var(--border-color);
 }
 
-/* Neon Glow Effects for Selected Items */
+/* Removed Neon Glow Effects for cleaner look */
 [data-theme="dark"] .tree-item.selected {
-    box-shadow: 0 0 15px rgba(232, 121, 249, 0.3);
+    /* no glow */
 }
 
 [data-theme="dark"] .icon-btn.active {
-    box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+    /* no glow */
 }
 
 [data-theme="dark"] tr.selected-row td {
@@ -1075,7 +1130,8 @@ tr:hover .exif-fetch-btn {
 }
 [data-theme="dark"] .grid-item.selected-item {
     background-color: rgba(45, 212, 191, 0.1);
-    box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
+    border-color: var(--gts-teal);
+    /* no glow */
 }
 
 /* Floating Hover Card */
