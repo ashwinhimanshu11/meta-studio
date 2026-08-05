@@ -238,14 +238,17 @@
         const cos = Math.cos(rad);
         
         // Scale ratio for the inscribed rectangle with original aspect ratio
-        const scale = 1 / (cos + sin * (w / h));
+        const scale1 = w / (w * cos + h * sin);
+        const scale2 = h / (w * sin + h * cos);
+        const scale = Math.min(scale1, scale2);
         
         // Enforce the crop box to be the inscribed rectangle
-        // Even if we are not in visual crop mode, setting the crop box ensures getCroppedCanvas is correct
-        // First make sure crop box exists
         if (!cropper.cropped) {
           cropper.crop();
         }
+        
+        // Set fixed aspect ratio to ensure no manual dragging breaks it
+        cropper.setAspectRatio(w / h);
         
         const canvasData = cropper.getCanvasData();
         // The width and height of the bounding box of the rotated image
@@ -353,6 +356,11 @@
             cropBoxResizable: true,
             toggleDragModeOnDblclick: false,
             wheelZoomRatio: 0.1,
+            ready() {
+              if (baseRotation !== 0 || straightenAngle !== 0) {
+                applyRotation();
+              }
+            }
           });
         } else {
           // Apply the crop
