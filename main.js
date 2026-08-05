@@ -747,34 +747,62 @@ ipcMain.on("open-image-editor-window", (event, payload) => {
 });
 
 ipcMain.handle("save-image", async (event, { dataUrl, originalPath, replace }) => {
-  try {
-    // dataUrl is a base64 string like "data:image/png;base64,iVBORw0KG..."
-    const matches = dataUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      return { error: "Invalid image data." };
-    }
-    const buffer = Buffer.from(matches[2], "base64");
-    
-    let targetPath = originalPath;
-    if (!replace) {
-      const ext = path.extname(originalPath);
-      const name = path.basename(originalPath, ext);
-      const dir = path.dirname(originalPath);
-      targetPath = path.join(dir, `${name}-edited${ext}`);
-      
-      // Ensure unique filename
-      let counter = 1;
-      while (fs.existsSync(targetPath)) {
-        targetPath = path.join(dir, `${name}-edited-${counter}${ext}`);
-        counter++;
-      }
-    }
-    
-    fs.writeFileSync(targetPath, buffer);
-    return { success: true, path: targetPath };
-  } catch (error) {
-    return { error: error.message };
+  const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64Data, "base64");
+  
+  if (replace) {
+    fs.writeFileSync(originalPath, buffer);
+    return originalPath;
+  } else {
+    const ext = path.extname(originalPath);
+    const basename = path.basename(originalPath, ext);
+    const dir = path.dirname(originalPath);
+    const newPath = path.join(dir, `${basename}_edited${ext}`);
+    fs.writeFileSync(newPath, buffer);
+    return newPath;
   }
+});
+
+const os = require("os");
+const { exec } = require("child_process");
+
+ipcMain.handle("run-yolo-redact", async (event, dataUrl) => {
+  return new Promise((resolve) => {
+    const tempIn = path.join(os.tmpdir(), `yolo_in_${Date.now()}.png`);
+    const tempOut = path.join(os.tmpdir(), `yolo_out_${Date.now()}.png`);
+    
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+    fs.writeFileSync(tempIn, base64Data, "base64");
+    
+    const pythonPath = path.join(__dirname, "yolo_venv", "bin", "python");
+    const scriptPath = path.join(__dirname, "yolo_redact.py");
+    
+    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}"`, (error, stdout, stderr) => {
+      try {
+        if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
+      } catch (e) {}
+      
+      if (error) {
+        resolve({ error: stderr || error.message });
+      } else {
+        try {
+          const result = JSON.parse(stdout);
+          if (result.success) {
+            const outBuffer = fs.readFileSync(tempOut);
+            const outDataUrl = `data:image/png;base64,${outBuffer.toString("base64")}`;
+            try {
+              if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
+            } catch (e) {}
+            resolve({ success: true, dataUrl: outDataUrl, count: result.redactedCount });
+          } else {
+            resolve({ error: result.error || "Unknown error" });
+          }
+        } catch (e) {
+          resolve({ error: "Failed to parse Python output: " + stdout });
+        }
+      }
+    });
+  });
 });
 
 // ==========================================

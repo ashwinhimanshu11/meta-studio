@@ -194,6 +194,9 @@
         <button id="btn-crop" class="action-btn">
           <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
         </button>
+        <button id="btn-redact" class="action-btn" title="YOLO Auto-Redact">
+          <span class="material-symbols-rounded" id="redact-icon" style="font-size: 18px;">blur_on</span> <span id="redact-text">Auto-Redact</span>
+        </button>
         <button id="btn-a4-portrait" class="action-btn" title="A4 Portrait" style="display: none;">
           <span class="material-symbols-rounded" style="font-size: 18px;">crop_portrait</span> A4
         </button>
@@ -469,6 +472,47 @@
       document.getElementById("btn-a4-landscape").addEventListener("click", () => {
         if (!cropper || !isCroppingMode) return;
         setA4Mode("landscape");
+      });
+
+      document.getElementById("btn-redact").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-redact");
+        if (!cropper || btn.disabled) return;
+        
+        btn.disabled = true;
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "sync";
+        icon.classList.add("spinning");
+        text.textContent = "YOLO Scanning...";
+        
+        try {
+          const canvas = cropper.getCroppedCanvas();
+          if (!canvas) throw new Error("Canvas error");
+          
+          const dataUrl = canvas.toDataURL("image/png");
+          const result = await window.electronAPI.runYoloRedact(dataUrl);
+          
+          if (result.success && result.count > 0) {
+            cropper.destroy();
+            const image = document.getElementById("editor-image");
+            image.src = result.dataUrl;
+            showToast(`YOLO Redacted ${result.count} sensitive areas.`);
+            enableSave();
+          } else if (result.success) {
+            showToast("No sensitive areas found by YOLO.");
+          } else {
+            console.error(result.error);
+            showToast("YOLO Error: " + result.error);
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Error during YOLO redaction.");
+        } finally {
+          btn.disabled = false;
+          icon.textContent = "blur_on";
+          icon.classList.remove("spinning");
+          text.textContent = "Auto-Redact";
+        }
       });
 
       document.getElementById("btn-cancel").addEventListener("click", () => {

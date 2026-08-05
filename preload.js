@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onInitEditor: (callback) =>
     ipcRenderer.on("init-editor", (event, payload) => callback(payload)),
   saveImage: (payload) => ipcRenderer.invoke("save-image", payload),
+  runYoloRedact: (dataUrl) => ipcRenderer.invoke("run-yolo-redact", dataUrl),
   openVideoEditorWindow: (payload) => ipcRenderer.send("open-video-editor-window", payload),
   onInitVideoEditor: (callback) =>
     ipcRenderer.on("init-video-editor", (event, payload) => callback(payload)),
