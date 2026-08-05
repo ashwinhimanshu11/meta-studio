@@ -12,3 +12,5 @@ application to perform multiple file operations
 23-06-26: added file conversion window, added file conversion features, added progress bars, fixed bugs
 
 26-05-26: made the application modular
+
+05-08-26: added video editor, fix image editor UI, add cropper rotation and straighten features
