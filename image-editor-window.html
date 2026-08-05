@@ -84,7 +84,7 @@
         padding: 8px 16px;
         font-family: "Poppins", sans-serif;
         font-size: 13px;
-        font-weight: 500;
+        font-weight: 300;
         border: 1px solid var(--border-color);
         border-radius: 6px;
         background: var(--bg-base);
@@ -194,6 +194,15 @@
         <button id="btn-crop" class="action-btn">
           <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
         </button>
+        <button id="btn-a4-portrait" class="action-btn" title="A4 Portrait" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">crop_portrait</span> A4
+        </button>
+        <button id="btn-a4-landscape" class="action-btn" title="A4 Landscape" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">crop_landscape</span> A4
+        </button>
+        <button id="btn-cancel" class="action-btn" disabled title="Cancel all changes">
+          <span class="material-symbols-rounded" style="font-size: 18px;">undo</span> Cancel
+        </button>
         <div class="dropdown-wrapper">
           <button id="btn-save" class="action-btn primary" disabled>
             <span class="material-symbols-rounded" style="font-size: 18px;">save</span> Save
@@ -216,9 +225,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <script>
       let currentFilePath = null;
+      let originalSrc = null;
       let cropper = null;
       let isEdited = false;
       let isCroppingMode = false;
+      let a4Mode = null;
       let baseRotation = 0;
       let straightenAngle = 0;
 
@@ -237,36 +248,40 @@
         const sin = Math.sin(rad);
         const cos = Math.cos(rad);
         
-        // Scale ratio for the inscribed rectangle with original aspect ratio
-        const scale1 = w / (w * cos + h * sin);
-        const scale2 = h / (w * sin + h * cos);
-        const scale = Math.min(scale1, scale2);
+        let currentAspectRatio = w / h;
+        if (isCroppingMode && a4Mode === "portrait") {
+          currentAspectRatio = 0.7071;
+        } else if (isCroppingMode && a4Mode === "landscape") {
+          currentAspectRatio = 1.4142;
+        }
         
-        // Enforce the crop box to be the inscribed rectangle
+        // Calculate max inscribed crop dimensions
+        const cropWLimit1 = w / (cos + sin / currentAspectRatio);
+        const cropWLimit2 = h / (sin + cos / currentAspectRatio);
+        const maxCropW = Math.min(cropWLimit1, cropWLimit2);
+        const maxCropH = maxCropW / currentAspectRatio;
+        
         if (!cropper.cropped) {
           cropper.crop();
         }
         
-        // Set fixed aspect ratio to ensure no manual dragging breaks it
-        cropper.setAspectRatio(w / h);
+        cropper.setAspectRatio(currentAspectRatio);
         
         const canvasData = cropper.getCanvasData();
-        // The width and height of the bounding box of the rotated image
         const boundingW = w * cos + h * sin;
         const boundingH = w * sin + h * cos;
         
         // The scale of the canvas on screen vs natural
         const canvasScale = canvasData.width / boundingW;
         
-        // The inscribed dimensions on screen
-        const cropW = w * scale * canvasScale;
-        const cropH = h * scale * canvasScale;
+        const cropWOnScreen = maxCropW * canvasScale;
+        const cropHOnScreen = maxCropH * canvasScale;
         
         cropper.setCropBoxData({
-          left: canvasData.left + (canvasData.width - cropW) / 2,
-          top: canvasData.top + (canvasData.height - cropH) / 2,
-          width: cropW,
-          height: cropH
+          left: canvasData.left + (canvasData.width - cropWOnScreen) / 2,
+          top: canvasData.top + (canvasData.height - cropHOnScreen) / 2,
+          width: cropWOnScreen,
+          height: cropHOnScreen
         });
         
         enableSave();
@@ -282,11 +297,13 @@
       function enableSave() {
         isEdited = true;
         document.getElementById("btn-save").disabled = false;
+        document.getElementById("btn-cancel").disabled = false;
       }
       
       function disableSave() {
         isEdited = false;
         document.getElementById("btn-save").disabled = true;
+        document.getElementById("btn-cancel").disabled = true;
         document.getElementById("save-dropdown").classList.remove("show");
       }
       
@@ -315,6 +332,7 @@
         } else {
           image.src = 'file://' + payload.filePath;
         }
+        originalSrc = image.src;
         
         image.onload = () => {
           if (cropper) cropper.destroy();
@@ -341,6 +359,8 @@
           isCroppingMode = true;
           document.getElementById("crop-text").textContent = "Apply Crop";
           document.getElementById("crop-icon").textContent = "check";
+          document.getElementById("btn-a4-portrait").style.display = "flex";
+          document.getElementById("btn-a4-landscape").style.display = "flex";
           
           // Re-init cropper to properly render grid lines and corners
           cropper.destroy();
@@ -378,6 +398,8 @@
           
           document.getElementById("crop-text").textContent = "Crop";
           document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
           
           // Re-initialize cropper for zooming/panning on the cropped image
           image.onload = () => {
@@ -414,6 +436,66 @@
       document.getElementById("btn-rotate-right").addEventListener("click", () => {
         baseRotation += 90;
         applyRotation();
+      });
+
+      function setA4Mode(mode) {
+        if (a4Mode === mode) {
+          a4Mode = null; // toggle off
+        } else {
+          a4Mode = mode;
+        }
+        
+        const btnP = document.getElementById("btn-a4-portrait");
+        const btnL = document.getElementById("btn-a4-landscape");
+        
+        btnP.style.background = a4Mode === "portrait" ? "var(--bg-hover)" : "";
+        btnP.style.borderColor = a4Mode === "portrait" ? "var(--gts-blue)" : "";
+        
+        btnL.style.background = a4Mode === "landscape" ? "var(--bg-hover)" : "";
+        btnL.style.borderColor = a4Mode === "landscape" ? "var(--gts-blue)" : "";
+        
+        applyRotation();
+        
+        if (!a4Mode) {
+          cropper.setAspectRatio(NaN);
+        }
+      }
+
+      document.getElementById("btn-a4-portrait").addEventListener("click", () => {
+        if (!cropper || !isCroppingMode) return;
+        setA4Mode("portrait");
+      });
+
+      document.getElementById("btn-a4-landscape").addEventListener("click", () => {
+        if (!cropper || !isCroppingMode) return;
+        setA4Mode("landscape");
+      });
+
+      document.getElementById("btn-cancel").addEventListener("click", () => {
+        if (!isEdited) return;
+        
+        // Reset all states
+        baseRotation = 0;
+        straightenAngle = 0;
+        document.getElementById("straighten-slider").value = 0;
+        
+        if (a4Mode) {
+          setA4Mode(null);
+        }
+        
+        if (isCroppingMode) {
+          isCroppingMode = false;
+          document.getElementById("crop-text").textContent = "Crop";
+          document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
+        }
+        
+        disableSave();
+        
+        // Restore original image which triggers onload and resets cropper
+        const image = document.getElementById("editor-image");
+        image.src = originalSrc;
       });
 
       async function handleSave(replace) {

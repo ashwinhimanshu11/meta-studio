@@ -125,7 +125,7 @@ body[data-mode="video-editor"] #video-workspace {
     margin: 0 0 8px;
     color: var(--text-muted);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
@@ -360,7 +360,7 @@ body[data-mode="video-editor"] #video-workspace {
 .status-pill {
     color: var(--text-muted);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 300;
 }
 
 .converter-controls {
@@ -378,7 +378,7 @@ body[data-mode="video-editor"] #video-workspace {
     gap: 8px;
     color: var(--text-muted);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .converter-controls select {
@@ -535,7 +535,7 @@ body[data-mode="video-editor"] #video-workspace {
     overflow-x: hidden; /* This stops horizontal scrolling and awkward box cuts */
     padding: 15px 10px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 300;
 }
 
 .tree-node {
@@ -624,7 +624,7 @@ body[data-mode="video-editor"] #video-workspace {
 h2 {
     margin-top: 0;
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 400;
     /* Apply the brand gradient to all panel headers */
     background: var(--gts-gradient);
     -webkit-background-clip: text;
@@ -728,7 +728,7 @@ thead th {
     top: 0;
     background-color: var(--bg-panel);
     padding: 12px 15px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--gts-blue);
     text-transform: uppercase;
     font-size: 11px;
@@ -852,7 +852,7 @@ tr:hover td {
 tr.selected-row td {
     background-color: rgba(29, 100, 135, 0.1) !important;
     color: var(--gts-blue);
-    font-weight: 500;
+    font-weight: 300;
 }
 tr {
     cursor: pointer;
@@ -888,7 +888,7 @@ tr {
 }
 .meta-item > span:first-child {
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 300;
 }
 .meta-item > span:last-child {
     color: var(--text-main);
@@ -922,7 +922,7 @@ tr:hover .exif-fetch-btn {
 }
 .exif-item span:first-child {
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 300;
 }
 .exif-item span:last-child {
     color: var(--text-main);
@@ -944,21 +944,21 @@ tr:hover .exif-fetch-btn {
    Neon Dark Theme Overrides
    ========================================= */
 [data-theme="dark"] {
-    /* Lighter, Neon Accents */
-    --gts-purple: #e879f9;
-    --gts-blue: #60a5fa;
-    --gts-teal: #2dd4bf;
+    /* Darker, Subdued Accents */
+    --gts-purple: #c026d3; /* Darker pink/purple */
+    --gts-blue: #3b82f6; /* Darker blue */
+    --gts-teal: #0d9488;
     --gts-gradient: linear-gradient(135deg, var(--gts-purple), var(--gts-blue));
 
-    /* Deep Dark Base */
-    --bg-base: #0f172a;
-    --bg-panel: #1e293b;
-    --bg-hover: #334155;
-    --border-color: #475569;
+    /* Deep Dark Base (Much darker greys) */
+    --bg-base: #050505;
+    --bg-panel: #111111;
+    --bg-hover: #1a1a1a;
+    --border-color: #2a2a2a;
 
     /* Light Typography */
     --text-main: #f8fafc;
-    --text-muted: #94a3b8;
+    --text-muted: #888888;
 }
 
 /* Remove hardcoded whites so they inherit the dark backgrounds */
@@ -1101,7 +1101,7 @@ tr:hover .exif-fetch-btn {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 .hover-card-title {
-    font-weight: 600;
+    font-weight: 400;
     color: var(--gts-teal);
     margin-bottom: 4px;
     word-break: break-all;
@@ -1201,7 +1201,7 @@ tr:hover .exif-fetch-btn {
     display: flex;
     justify-content: space-between;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     color: var(--text-main);
     margin-bottom: 8px;
 }

@@ -354,7 +354,7 @@ function updateDetailsTable() {
     gridItem.innerHTML = `<input type="checkbox" class="grid-checkbox"><span class="material-symbols-rounded grid-icon">${iconName}</span><span class="grid-name" title="${escapeHtml(data.name)}">${escapeHtml(data.name)}</span>`;
 
     gridItem.addEventListener("mouseenter", () => {
-      hc.innerHTML = `<div class="hover-card-title">${escapeHtml(data.name)}</div><div class="hover-card-row"><span>Type:</span><span>${ext} File</span></div><div class="hover-card-row"><span>Size:</span><span>${formatSize(data.size)}</span></div><div class="hover-card-row"><span>Modified:</span><span>${new Date(data.modified).toLocaleString()}</span></div>${exifDataCache.has(data.path) ? '<div class="hover-card-row" style="margin-top: 6px; justify-content: center;"><span style="color:var(--gts-purple); font-weight: 600;">★ EXIF Extracted</span></div>' : ""}`;
+      hc.innerHTML = `<div class="hover-card-title">${escapeHtml(data.name)}</div><div class="hover-card-row"><span>Type:</span><span>${ext} File</span></div><div class="hover-card-row"><span>Size:</span><span>${formatSize(data.size)}</span></div><div class="hover-card-row"><span>Modified:</span><span>${new Date(data.modified).toLocaleString()}</span></div>${exifDataCache.has(data.path) ? '<div class="hover-card-row" style="margin-top: 6px; justify-content: center;"><span style="color:var(--gts-purple); font-weight: 400;">★ EXIF Extracted</span></div>' : ""}`;
       hc.style.display = "flex";
       setTimeout(() => (hc.style.opacity = "1"), 10);
     });
@@ -585,7 +585,7 @@ async function loadInspectorData() {
       .sort((a, b) => b[1] - a[1])
       .map(
         ([t, c]) =>
-          `<div style="display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.05); color: var(--text-main);"><span>${t}</span><span style="font-weight: 600; color: var(--gts-blue);">${c}</span></div>`,
+          `<div style="display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.05); color: var(--text-main);"><span>${t}</span><span style="font-weight: 400; color: var(--gts-blue);">${c}</span></div>`,
       )
       .join("");
 

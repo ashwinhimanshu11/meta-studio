@@ -69,6 +69,32 @@ async function renderEditorDirectory(path, containerElement) {
     content.style.minWidth = "0";
     content.innerHTML = `${toggle}<span class="material-symbols-rounded icon">${iconName}</span><span class="name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</span>`;
     
+    if (!entry.isDirectory) {
+      const printBtn = document.createElement("span");
+      printBtn.className = "material-symbols-rounded icon-action";
+      printBtn.textContent = "print";
+      printBtn.style.marginLeft = "auto";
+      printBtn.style.padding = "4px";
+      printBtn.style.fontSize = "16px";
+      printBtn.style.cursor = "pointer";
+      printBtn.style.display = "none";
+      printBtn.title = "Print Image";
+      printBtn.style.color = "var(--text-muted)";
+      
+      printBtn.addEventListener("mouseenter", () => printBtn.style.color = "var(--text-main)");
+      printBtn.addEventListener("mouseleave", () => printBtn.style.color = "var(--text-muted)");
+      
+      printBtn.addEventListener("mousedown", (e) => {
+        e.stopPropagation();
+        printImage(entry.path);
+      });
+      
+      content.appendChild(printBtn);
+      
+      item.addEventListener("mouseenter", () => printBtn.style.display = "block");
+      item.addEventListener("mouseleave", () => printBtn.style.display = "none");
+    }
+    
     item.appendChild(content);
     node.appendChild(item);
 
@@ -131,4 +157,34 @@ async function renderEditorDirectory(path, containerElement) {
     }
     containerElement.appendChild(node);
   });
+}
+
+function printImage(imagePath) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+  
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <style>
+          @page { margin: 0; size: auto; }
+          body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: white; }
+          img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        </style>
+      </head>
+      <body>
+        <img src="file://${imagePath}" onload="window.print();" />
+      </body>
+    </html>
+  `);
+  doc.close();
+  
+  setTimeout(() => {
+    if (document.body.contains(iframe)) {
+      document.body.removeChild(iframe);
+    }
+  }, 10000);
 }
