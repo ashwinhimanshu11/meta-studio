@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openExifWindow: (payload) => ipcRenderer.send("open-exif-window", payload),
   onRenderExif: (callback) =>
     ipcRenderer.on("render-exif", (event, payload) => callback(payload)),
+  openImageEditorWindow: (payload) => ipcRenderer.send("open-image-editor-window", payload),
+  onInitEditor: (callback) =>
+    ipcRenderer.on("init-editor", (event, payload) => callback(payload)),
+  saveImage: (payload) => ipcRenderer.invoke("save-image", payload),
+  openVideoEditorWindow: (payload) => ipcRenderer.send("open-video-editor-window", payload),
+  onInitVideoEditor: (callback) =>
+    ipcRenderer.on("init-video-editor", (event, payload) => callback(payload)),
   onMetadataUpdated: (callback) =>
     ipcRenderer.on("metadata-updated", (event, paths) => callback(paths)),
 });

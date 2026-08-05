@@ -724,3 +724,77 @@ ipcMain.on("open-exif-window", (event, payload) => {
     exifWin.webContents.send("render-exif", payload),
   );
 });
+
+// ==========================================
+// IMAGE EDITOR POPUP ROUTER
+// ==========================================
+ipcMain.on("open-image-editor-window", (event, payload) => {
+  const editorWin = new BrowserWindow({
+    width: 900,
+    height: 700,
+    title: "Image Editor - " + path.basename(payload.filePath),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+  editorWin.setMenuBarVisibility(false);
+  editorWin.loadFile("image-editor-window.html");
+  editorWin.webContents.once("did-finish-load", () =>
+    editorWin.webContents.send("init-editor", payload),
+  );
+});
+
+ipcMain.handle("save-image", async (event, { dataUrl, originalPath, replace }) => {
+  try {
+    // dataUrl is a base64 string like "data:image/png;base64,iVBORw0KG..."
+    const matches = dataUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return { error: "Invalid image data." };
+    }
+    const buffer = Buffer.from(matches[2], "base64");
+    
+    let targetPath = originalPath;
+    if (!replace) {
+      const ext = path.extname(originalPath);
+      const name = path.basename(originalPath, ext);
+      const dir = path.dirname(originalPath);
+      targetPath = path.join(dir, `${name}-edited${ext}`);
+      
+      // Ensure unique filename
+      let counter = 1;
+      while (fs.existsSync(targetPath)) {
+        targetPath = path.join(dir, `${name}-edited-${counter}${ext}`);
+        counter++;
+      }
+    }
+    
+    fs.writeFileSync(targetPath, buffer);
+    return { success: true, path: targetPath };
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+
+// ==========================================
+// VIDEO EDITOR POPUP ROUTER
+// ==========================================
+ipcMain.on("open-video-editor-window", (event, payload) => {
+  const videoWin = new BrowserWindow({
+    width: 900,
+    height: 700,
+    title: "Video Editor - " + path.basename(payload.filePath),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+      webSecurity: false // allow local video files for playback if needed, though often isolated context handles file:// fine if loaded locally
+    },
+  });
+  videoWin.setMenuBarVisibility(false);
+  videoWin.loadFile("video-editor-window.html");
+  videoWin.webContents.once("did-finish-load", () =>
+    videoWin.webContents.send("init-video-editor", payload),
+  );
+});

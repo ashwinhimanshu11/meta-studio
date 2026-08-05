@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Video Editor</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+    />
+
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg-base);
+        font-family: "Poppins", sans-serif;
+      }
+      .exif-editor-header {
+        padding: 22px 28px 16px;
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-color);
+      }
+      .exif-editor-header p {
+        margin: 0 0 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .exif-editor-header h2 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.35;
+        word-break: break-all;
+      }
+      .editor-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: var(--bg-base);
+      }
+      #editor-video {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="exif-editor-header">
+      <p>Video Editor</p>
+      <h2 id="filename-display">Loading Video...</h2>
+    </div>
+    <div class="editor-container">
+      <video id="editor-video" controls></video>
+    </div>
+
+    <script>
+      window.electronAPI.onInitVideoEditor(async (payload) => {
+        if (payload.theme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+        
+        document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
+        document.getElementById("editor-video").src = 'file://' + payload.filePath;
+      });
+    </script>
+  </body>
+</html>

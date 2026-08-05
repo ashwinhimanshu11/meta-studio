@@ -39,7 +39,9 @@ body {
 
 /* 1. App Launcher */
 body[data-mode="metadata"] #app-launcher,
-body[data-mode="converter"] #app-launcher {
+body[data-mode="converter"] #app-launcher,
+body[data-mode="editor"] #app-launcher,
+body[data-mode="video-editor"] #app-launcher {
     display: none !important;
 }
 
@@ -72,6 +74,32 @@ body:not([data-mode="converter"]) .converter-workspace {
 }
 
 body[data-mode="converter"] .converter-workspace {
+    display: flex !important;
+    flex-direction: row;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 4. EDITOR WORKSPACE */
+body:not([data-mode="editor"]) .editor-workspace {
+    display: none !important;
+}
+
+body[data-mode="editor"] .editor-workspace {
+    display: flex !important;
+    flex-direction: row;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 5. VIDEO EDITOR WORKSPACE */
+body:not([data-mode="video-editor"]) #video-workspace {
+    display: none !important;
+}
+
+body[data-mode="video-editor"] #video-workspace {
     display: flex !important;
     flex-direction: row;
     width: 100vw;
@@ -420,7 +448,9 @@ body[data-mode="converter"] .converter-workspace {
     background: var(--gts-gradient);
 }
 
-#folder-path-input {
+#folder-path-input,
+#editor-folder-input,
+#video-folder-input {
     width: 100%;
     box-sizing: border-box;
     padding: 10px 14px;
@@ -435,12 +465,16 @@ body[data-mode="converter"] .converter-workspace {
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
-#folder-path-input:focus {
+#folder-path-input:focus,
+#editor-folder-input:focus,
+#video-folder-input:focus {
     border-color: var(--gts-teal);
     box-shadow: 0 0 0 3px rgba(29, 100, 135, 0.15);
 }
 
-#folder-path-input::placeholder {
+#folder-path-input::placeholder,
+#editor-folder-input::placeholder,
+#video-folder-input::placeholder {
     color: #94a3b8;
 }
 
@@ -931,6 +965,8 @@ tr:hover .exif-fetch-btn {
 [data-theme="dark"] .table-container,
 [data-theme="dark"] #folder-path-input,
 [data-theme="dark"] #converter-folder-input,
+[data-theme="dark"] #editor-folder-input,
+[data-theme="dark"] #video-folder-input,
 [data-theme="dark"] .filter-input,
 [data-theme="dark"] .middle-filter,
 [data-theme="dark"] .middle-filter input,

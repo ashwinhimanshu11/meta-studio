@@ -2,16 +2,22 @@ import { initProgress } from "./js/progress.js";
 import { initUI } from "./js/ui.js";
 import { initConverter, loadConverterFolder } from "./js/converter.js";
 import { initMetadata, loadRootDirectory } from "./js/metadata.js";
+import { initEditor, loadEditorFolder } from "./js/editor.js";
+import { initVideoEditor, loadVideoEditorFolder } from "./js/video-editor.js";
 
 // Initialize all the isolated modules
 initProgress();
 initUI();
 initConverter();
 initMetadata();
+initEditor();
+initVideoEditor();
 
 // Global Drag and Drop Orchestrator
 const dragOverlay = document.getElementById("drag-overlay");
 const converterDropZone = document.getElementById("converter-drop-zone");
+const editorDropZone = document.getElementById("editor-drop-zone");
+const videoDropZone = document.getElementById("video-drop-zone");
 
 document.addEventListener("dragover", (e) => {
   e.preventDefault();
@@ -19,6 +25,10 @@ document.addEventListener("dragover", (e) => {
     dragOverlay.classList.add("active");
   if (document.body.dataset.mode === "converter")
     converterDropZone.classList.add("active");
+  if (document.body.dataset.mode === "editor")
+    editorDropZone.classList.add("active");
+  if (document.body.dataset.mode === "video-editor")
+    videoDropZone.classList.add("active");
 });
 
 document.addEventListener("dragleave", (e) => {
@@ -27,12 +37,18 @@ document.addEventListener("dragleave", (e) => {
     dragOverlay.classList.remove("active");
   if (e.relatedTarget === null || e.target === converterDropZone)
     converterDropZone.classList.remove("active");
+  if (e.relatedTarget === null || e.target === editorDropZone)
+    editorDropZone.classList.remove("active");
+  if (e.relatedTarget === null || e.target === videoDropZone)
+    videoDropZone.classList.remove("active");
 });
 
 document.addEventListener("drop", (e) => {
   e.preventDefault();
   dragOverlay.classList.remove("active");
   converterDropZone.classList.remove("active");
+  editorDropZone.classList.remove("active");
+  videoDropZone.classList.remove("active");
 
   const files = e.dataTransfer.files;
   if (files.length === 0) return;
@@ -45,5 +61,10 @@ document.addEventListener("drop", (e) => {
     loadConverterFolder(droppedPath);
   } else if (document.body.dataset.mode === "metadata") {
     loadRootDirectory(droppedPath);
+  } else if (document.body.dataset.mode === "editor") {
+    loadEditorFolder(droppedPath);
+  } else if (document.body.dataset.mode === "video-editor") {
+    loadVideoEditorFolder(droppedPath);
   }
 });
+

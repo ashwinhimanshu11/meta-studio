@@ -30,10 +30,22 @@ export function initUI() {
     .getElementById("open-converter-mode")
     .addEventListener("click", () => setAppMode("converter"));
   document
+    .getElementById("open-editor-mode")
+    .addEventListener("click", () => setAppMode("editor"));
+  document
+    .getElementById("open-video-editor-mode")
+    .addEventListener("click", () => setAppMode("video-editor"));
+  document
     .getElementById("converter-back-btn")
     .addEventListener("click", () => setAppMode(""));
   document
     .getElementById("metadata-back-btn")
+    .addEventListener("click", () => setAppMode(""));
+  document
+    .getElementById("editor-back-btn")
+    .addEventListener("click", () => setAppMode(""));
+  document
+    .getElementById("video-back-btn")
     .addEventListener("click", () => setAppMode(""));
 
   // ==========================================
