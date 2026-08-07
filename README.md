@@ -14,3 +14,5 @@ application to perform multiple file operations
 26-05-26: made the application modular
 
 05-08-26: added video editor, fix image editor UI, add cropper rotation and straighten features
+
+07-08-26: perfected redaction features, changed GUI elements
