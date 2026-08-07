@@ -29,15 +29,18 @@
         font-family: "Poppins", sans-serif;
       }
       .exif-editor-header {
-        padding: 22px 28px 16px;
+        padding: 16px 20px;
         background: var(--bg-panel);
         border-bottom: 1px solid var(--border-color);
         display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
         justify-content: space-between;
         align-items: flex-end;
       }
       .header-title-area {
         flex: 1;
+        min-width: 0;
       }
       .exif-editor-header p {
         margin: 0 0 4px;
@@ -50,11 +53,16 @@
         margin: 0;
         font-size: 19px;
         line-height: 1.35;
-        word-break: break-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .header-actions {
         display: flex;
         gap: 10px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
       .editor-container {
         flex: 1;
@@ -172,6 +180,50 @@
       #status-toast.show {
         opacity: 1;
       }
+    
+      .custom-dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .custom-dropdown-btn {
+        background-color: var(--bg-surface) !important;
+        justify-content: space-between;
+        min-width: 100px;
+      }
+      .custom-dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 6px;
+        background-color: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+        z-index: 1000;
+        min-width: 130px;
+        overflow: hidden;
+      }
+      .custom-dropdown-content.show {
+        display: block;
+      }
+      .custom-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        color: var(--text-main);
+        font-size: 13px;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .custom-dropdown-item:hover {
+        background-color: var(--bg-hover);
+      }
+      .custom-dropdown.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -193,6 +245,42 @@
         </button>
         <button id="btn-crop" class="action-btn">
           <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
+        </button>
+        
+        <!-- Custom Dropdowns -->
+        <input type="hidden" id="redact-target" value="faces" />
+        <input type="hidden" id="redact-mode" value="blur" />
+        
+        <div class="custom-dropdown" id="dd-target">
+          <button class="action-btn custom-dropdown-btn" id="btn-dd-target" title="Select Target">
+            <span class="material-symbols-rounded" id="target-icon" style="font-size:18px">face</span>
+            <span id="target-label">Faces</span>
+            <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
+          </button>
+          <div class="custom-dropdown-content" id="content-dd-target">
+            <div class="custom-dropdown-item" data-value="faces"><span class="material-symbols-rounded" style="font-size:18px">face</span> Faces</div>
+            <div class="custom-dropdown-item" data-value="plates"><span class="material-symbols-rounded" style="font-size:18px">directions_car</span> Plates</div>
+          </div>
+        </div>
+
+        <div class="custom-dropdown" id="dd-mode">
+          <button class="action-btn custom-dropdown-btn" id="btn-dd-mode" title="Select Mode">
+            <span class="material-symbols-rounded" id="mode-icon" style="font-size:18px">blur_on</span>
+            <span id="mode-label">Blur</span>
+            <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
+          </button>
+          <div class="custom-dropdown-content" id="content-dd-mode">
+            <div class="custom-dropdown-item" data-value="blur"><span class="material-symbols-rounded" style="font-size:18px">blur_on</span> Blur</div>
+            <div class="custom-dropdown-item" data-value="black"><span class="material-symbols-rounded" style="font-size:18px">check_box_outline_blank</span> Black Box</div>
+            <div class="custom-dropdown-item" data-value="white"><span class="material-symbols-rounded" style="font-size:18px">check_box_outline_blank</span> White Box</div>
+          </div>
+        </div>
+
+        <button id="btn-redact-apply" class="action-btn" style="display: none; background-color: var(--gts-blue); border-color: var(--gts-blue);">
+          <span class="material-symbols-rounded" style="font-size: 18px;">check</span> <span>Apply</span>
+        </button>
+        <button id="btn-redact-cancel" class="action-btn" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">close</span> <span>Cancel</span>
         </button>
         <button id="btn-redact" class="action-btn" title="YOLO Auto-Redact">
           <span class="material-symbols-rounded" id="redact-icon" style="font-size: 18px;">blur_on</span> <span id="redact-text">Auto-Redact</span>
@@ -220,12 +308,17 @@
     <div class="editor-container" style="background: var(--bg-base); box-sizing: border-box;">
       <div class="image-wrapper">
         <img id="editor-image" />
+        <div id="redact-review-container" style="display: none; position: relative; max-width: 100%; max-height: 100%;">
+          <img id="redact-review-img" src="" style="display: block; max-width: 100%; max-height: 100%;" />
+          <div id="redact-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        </div>
       </div>
     </div>
     
     <div id="status-toast">Image saved successfully!</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js">
+      </script>
     <script>
       let currentFilePath = null;
       let originalSrc = null;
@@ -489,15 +582,115 @@
           const canvas = cropper.getCroppedCanvas();
           if (!canvas) throw new Error("Canvas error");
           
+          const mode = document.getElementById("redact-mode").value;
+          const target = document.getElementById("redact-target").value;
           const dataUrl = canvas.toDataURL("image/png");
-          const result = await window.electronAPI.runYoloRedact(dataUrl);
+          const result = await window.electronAPI.runYoloRedact(dataUrl, mode, target);
           
-          if (result.success && result.count > 0) {
-            cropper.destroy();
-            const image = document.getElementById("editor-image");
-            image.src = result.dataUrl;
-            showToast(`YOLO Redacted ${result.count} sensitive areas.`);
-            enableSave();
+          if (result.success && result.boxes && result.boxes.length > 0) {
+            window.pendingRedactCanvas = canvas;
+            window.pendingRedactBoxes = result.boxes;
+            
+            document.querySelector(".cropper-container").style.display = "none";
+            const reviewContainer = document.getElementById("redact-review-container");
+            const reviewImg = document.getElementById("redact-review-img");
+            const boxesContainer = document.getElementById("redact-boxes-container");
+            
+            reviewImg.src = dataUrl;
+            reviewContainer.style.display = "inline-block";
+            
+            reviewImg.onload = () => {
+              boxesContainer.innerHTML = "";
+              const scaleX = reviewImg.clientWidth / canvas.width;
+              const scaleY = reviewImg.clientHeight / canvas.height;
+              
+              result.boxes.forEach((box, i) => {
+                const boxDiv = document.createElement("div");
+                boxDiv.style.position = "absolute";
+                boxDiv.style.left = (box.x * scaleX) + "px";
+                boxDiv.style.top = (box.y * scaleY) + "px";
+                boxDiv.style.width = (box.w * scaleX) + "px";
+                boxDiv.style.height = (box.h * scaleY) + "px";
+                
+                if (mode === "white") boxDiv.style.background = "white";
+                else if (mode === "blur") boxDiv.style.backdropFilter = "blur(10px)";
+                else boxDiv.style.background = "black";
+                
+                boxDiv.style.border = "2px dashed red";
+                
+                let isDragging = false;
+                let startX, startY;
+                let initialLeft, initialTop;
+                
+                boxDiv.style.cursor = 'move';
+                
+                boxDiv.onmousedown = (e) => {
+                  if (e.target === closeBtn) return;
+                  isDragging = true;
+                  startX = e.clientX;
+                  startY = e.clientY;
+                  initialLeft = parseFloat(boxDiv.style.left);
+                  initialTop = parseFloat(boxDiv.style.top);
+                  e.preventDefault();
+                };
+                
+                document.addEventListener('mousemove', (e) => {
+                  if (!isDragging) return;
+                  const dx = e.clientX - startX;
+                  const dy = e.clientY - startY;
+                  let newLeft = initialLeft + dx;
+                  let newTop = initialTop + dy;
+                  
+                  // constrain to image bounds
+                  newLeft = Math.max(0, Math.min(newLeft, reviewImg.clientWidth - boxDiv.offsetWidth));
+                  newTop = Math.max(0, Math.min(newTop, reviewImg.clientHeight - boxDiv.offsetHeight));
+                  
+                  boxDiv.style.left = newLeft + 'px';
+                  boxDiv.style.top = newTop + 'px';
+                  
+                  // Update underlying box coordinates
+                  window.pendingRedactBoxes[i].x = newLeft / scaleX;
+                  window.pendingRedactBoxes[i].y = newTop / scaleY;
+                });
+                
+                document.addEventListener('mouseup', () => {
+                  isDragging = false;
+                });
+                
+                const closeBtn = document.createElement("button");
+                closeBtn.innerHTML = "×";
+                closeBtn.style.position = "absolute";
+                closeBtn.style.top = "-10px";
+                closeBtn.style.right = "-10px";
+                closeBtn.style.background = "red";
+                closeBtn.style.color = "white";
+                closeBtn.style.border = "none";
+                closeBtn.style.borderRadius = "50%";
+                closeBtn.style.width = "20px";
+                closeBtn.style.height = "20px";
+                closeBtn.style.cursor = "pointer";
+                closeBtn.style.display = "flex";
+                closeBtn.style.alignItems = "center";
+                closeBtn.style.justifyContent = "center";
+                closeBtn.style.fontWeight = "bold";
+                
+                closeBtn.onclick = () => {
+                  boxDiv.remove();
+                  window.pendingRedactBoxes[i] = null;
+                };
+                
+                boxDiv.appendChild(closeBtn);
+                boxesContainer.appendChild(boxDiv);
+              });
+            };
+            
+            document.getElementById("btn-redact").style.display = "none";
+            document.getElementById("btn-redact-apply").style.display = "flex";
+            document.getElementById("btn-redact-cancel").style.display = "flex";
+            setDropdownsDisabled(true);
+            
+            
+            showToast(`Found ${result.boxes.length} sensitive areas. Review and apply.`);
           } else if (result.success) {
             showToast("No sensitive areas found by YOLO.");
           } else {
@@ -572,6 +765,114 @@
 
       document.getElementById("btn-save-replace").addEventListener("click", () => handleSave(true));
       document.getElementById("btn-save-new").addEventListener("click", () => handleSave(false));
+
+      document.getElementById("btn-redact-cancel").addEventListener("click", () => {
+        document.getElementById("redact-review-container").style.display = "none";
+        document.querySelector(".cropper-container").style.display = "block";
+        document.getElementById("btn-redact").style.display = "flex";
+        document.getElementById("btn-redact-apply").style.display = "none";
+        document.getElementById("btn-redact-cancel").style.display = "none";
+        setDropdownsDisabled(false);
+        
+        
+        
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "blur_on";
+        icon.classList.remove("spinning");
+        text.textContent = "Auto-Redact";
+        document.getElementById("btn-redact").disabled = false;
+      });
+
+      document.getElementById("btn-redact-apply").addEventListener("click", () => {
+        const ctx = window.pendingRedactCanvas.getContext("2d");
+        const mode = document.getElementById("redact-mode").value;
+        
+        window.pendingRedactBoxes.forEach(box => {
+          if (!box) return;
+          if (mode === "white") {
+            ctx.fillStyle = "white";
+            ctx.fillRect(box.x, box.y, box.w, box.h);
+          } else if (mode === "blur") {
+            ctx.save();
+            ctx.filter = `blur(${Math.max(5, box.w/10)}px)`;
+            ctx.drawImage(window.pendingRedactCanvas, box.x, box.y, box.w, box.h, box.x, box.y, box.w, box.h);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = "black";
+            ctx.fillRect(box.x, box.y, box.w, box.h);
+          }
+        });
+        
+        const finalDataUrl = window.pendingRedactCanvas.toDataURL("image/png");
+        cropper.destroy();
+        document.getElementById("editor-image").src = finalDataUrl;
+        
+        document.getElementById("redact-review-container").style.display = "none";
+        document.getElementById("editor-image").style.display = "block";
+        document.getElementById("btn-redact").style.display = "flex";
+        document.getElementById("btn-redact-apply").style.display = "none";
+        document.getElementById("btn-redact-cancel").style.display = "none";
+        setDropdownsDisabled(false);
+        
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "blur_on";
+        icon.classList.remove("spinning");
+        text.textContent = "Auto-Redact";
+        document.getElementById("btn-redact").disabled = false;
+        
+        initCropper();
+        enableSave();
+        showToast("Redactions applied successfully.");
+      });
+      
+    // Custom Dropdown Logic
+      function setupDropdown(id, inputId, labelId, iconId) {
+        const btn = document.getElementById('btn-' + id);
+        const content = document.getElementById('content-' + id);
+        const input = document.getElementById(inputId);
+        const label = document.getElementById(labelId);
+        const icon = document.getElementById(iconId);
+        
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.custom-dropdown-content').forEach(c => {
+            if(c !== content) c.classList.remove('show');
+          });
+          content.classList.toggle('show');
+        });
+        
+        content.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            input.value = item.dataset.value;
+            const iconText = item.querySelector('.material-symbols-rounded').textContent;
+            label.textContent = item.textContent.replace(iconText, '').trim();
+            icon.textContent = iconText;
+            content.classList.remove('show');
+          });
+        });
+      }
+      
+      setupDropdown('dd-target', 'redact-target', 'target-label', 'target-icon');
+      setupDropdown('dd-mode', 'redact-mode', 'mode-label', 'mode-icon');
+      
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown-content').forEach(c => c.classList.remove('show'));
+      });
+      
+      function setDropdownsDisabled(disabled) {
+        const ddt = document.getElementById('dd-target');
+        const ddm = document.getElementById('dd-mode');
+        if (disabled) {
+          ddt.classList.add('disabled');
+          ddm.classList.add('disabled');
+        } else {
+          ddt.classList.remove('disabled');
+          ddm.classList.remove('disabled');
+        }
+      }
+
     </script>
   </body>
 </html>

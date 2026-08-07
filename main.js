@@ -711,6 +711,8 @@ ipcMain.on("open-exif-window", (event, payload) => {
   const exifWin = new BrowserWindow({
     width: 600,
     height: 700,
+    minWidth: 500,
+    minHeight: 600,
     title: "EXIF Metadata - " + payload.filename,
     webPreferences: {
       nodeIntegration: false,
@@ -732,6 +734,8 @@ ipcMain.on("open-image-editor-window", (event, payload) => {
   const editorWin = new BrowserWindow({
     width: 900,
     height: 700,
+    minWidth: 800,
+    minHeight: 600,
     title: "Image Editor - " + path.basename(payload.filePath),
     webPreferences: {
       nodeIntegration: false,
@@ -766,7 +770,7 @@ ipcMain.handle("save-image", async (event, { dataUrl, originalPath, replace }) =
 const os = require("os");
 const { exec } = require("child_process");
 
-ipcMain.handle("run-yolo-redact", async (event, dataUrl) => {
+ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target = "faces") => {
   return new Promise((resolve) => {
     const tempIn = path.join(os.tmpdir(), `yolo_in_${Date.now()}.png`);
     const tempOut = path.join(os.tmpdir(), `yolo_out_${Date.now()}.png`);
@@ -777,23 +781,27 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl) => {
     const pythonPath = path.join(__dirname, "yolo_venv", "bin", "python");
     const scriptPath = path.join(__dirname, "yolo_redact.py");
     
-    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}"`, (error, stdout, stderr) => {
+    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}"`, (error, stdout, stderr) => {
       try {
         if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
       } catch (e) {}
       
       if (error) {
+        fs.writeFileSync("/tmp/yolo_debug.log", "Error: " + (stderr || error.message));
         resolve({ error: stderr || error.message });
       } else {
         try {
-          const result = JSON.parse(stdout);
+          fs.writeFileSync("/tmp/yolo_debug.log", "Stdout: " + stdout);
+          // Extract only the JSON object from stdout to ignore any printed warnings
+          const jsonMatch = stdout.match(/\{.*"success".*\}/);
+          const resultStr = jsonMatch ? jsonMatch[0] : stdout;
+          const result = JSON.parse(resultStr);
+          
           if (result.success) {
-            const outBuffer = fs.readFileSync(tempOut);
-            const outDataUrl = `data:image/png;base64,${outBuffer.toString("base64")}`;
             try {
               if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
             } catch (e) {}
-            resolve({ success: true, dataUrl: outDataUrl, count: result.redactedCount });
+            resolve({ success: true, boxes: result.boxes || [] });
           } else {
             resolve({ error: result.error || "Unknown error" });
           }
@@ -812,6 +820,8 @@ ipcMain.on("open-video-editor-window", (event, payload) => {
   const videoWin = new BrowserWindow({
     width: 900,
     height: 700,
+    minWidth: 800,
+    minHeight: 600,
     title: "Video Editor - " + path.basename(payload.filePath),
     webPreferences: {
       nodeIntegration: false,
