@@ -89,6 +89,24 @@ export function initConverter() {
       resultsBox.appendChild(item);
     });
   });
+
+  document.addEventListener('source-format-changed', (e) => {
+    const ext = e.detail.toLowerCase();
+    converterSelectedFiles.clear();
+    
+    if (ext === 'all') {
+      converterVisibleFiles.forEach((file) => converterSelectedFiles.add(file.path));
+    } else {
+      converterVisibleFiles.forEach((file) => {
+        if ((file.extension && file.extension.toLowerCase() === ext) || 
+            file.name.toLowerCase().endsWith('.' + ext)) {
+          converterSelectedFiles.add(file.path);
+        }
+      });
+    }
+    
+    renderConverterFiles();
+  });
 }
 
 export async function loadConverterFolder(path) {

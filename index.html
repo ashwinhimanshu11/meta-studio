@@ -22,6 +22,46 @@
         document.documentElement.setAttribute("data-theme", "dark");
       }
     </script>
+  
+    <style>
+      .custom-dropdown {
+        position: relative;
+        display: inline-block;
+      }
+      .custom-dropdown-btn:hover {
+        background: var(--bg-hover) !important;
+      }
+      .custom-dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%; /* Open downwards */
+        left: 0;
+        margin-top: 6px;
+        background-color: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-shadow: 0 -6px 16px rgba(0,0,0,0.3);
+        z-index: 1000;
+        min-width: 130px;
+        overflow: hidden;
+      }
+      .custom-dropdown-content.show {
+        display: block;
+      }
+      .custom-dropdown-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        color: var(--text-main);
+        font-size: 13px;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .custom-dropdown-item:hover {
+        background-color: var(--bg-hover);
+      }
+    </style>
   </head>
   <body>
     <!-- Elegant Minimal Splash Screen -->
@@ -633,40 +673,68 @@
               color: var(--text-muted);
               font-size: 12px;
               font-weight: 400;
+              margin-bottom: 12px;
+            "
+          >
+            Source Format
+            <input type="hidden" id="converter-source-select" value="all" />
+            <div class="custom-dropdown" id="dd-source" style="width: 100%;">
+              <button class="custom-dropdown-btn" id="btn-dd-source" title="Select Source Format" style="width: 100%; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-base); color: var(--text-main); font-family: 'Poppins', sans-serif; padding: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span id="source-label" style="display: flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded" id="source-icon" style="font-size: 18px;">auto_awesome_mosaic</span> All Formats</span>
+                <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+              </button>
+              <div class="custom-dropdown-content" id="content-dd-source" style="width: 100%; max-height: 250px; overflow-y: auto; top: 100%; margin-top: 6px;">
+                <div class="custom-dropdown-item" data-value="all"><span class="material-symbols-rounded" style="font-size: 18px;">auto_awesome_mosaic</span> All Formats</div>
+                <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">Images</div>
+                <div class="custom-dropdown-item" data-value="png"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> PNG</div>
+                <div class="custom-dropdown-item" data-value="jpg"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> JPG</div>
+                <div class="custom-dropdown-item" data-value="jpeg"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> JPEG</div>
+                <div class="custom-dropdown-item" data-value="webp"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> WebP</div>
+                <div class="custom-dropdown-item" data-value="avif"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> AVIF</div>
+                <div class="custom-dropdown-item" data-value="heic"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> HEIC</div>
+                <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">Videos</div>
+                <div class="custom-dropdown-item" data-value="mp4"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> MP4</div>
+                <div class="custom-dropdown-item" data-value="mov"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> MOV</div>
+                <div class="custom-dropdown-item" data-value="webm"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> WebM</div>
+              </div>
+            </div>
+          </label>
+
+          <label
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              color: var(--text-muted);
+              font-size: 12px;
+              font-weight: 400;
             "
           >
             Target Format
-            <select
-              id="converter-format-select"
-              style="
-                width: 100%;
-                border: 1px solid var(--border-color);
-                border-radius: 6px;
-                background: var(--bg-base);
-                color: var(--text-main);
-                font-family: &quot;Poppins&quot;, sans-serif;
-                padding: 10px;
-                outline: none;
-              "
-            >
-              <optgroup label="Images">
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="webp">WebP</option>
-                <option value="tiff">TIFF</option>
-                <option value="avif">AVIF</option>
-                <option value="heic">HEIC</option>
-                <option value="bmp">BMP</option>
-              </optgroup>
-              <optgroup label="Videos">
-                <option value="mp4">MP4</option>
-                <option value="mov">MOV</option>
-                <option value="webm">WebM</option>
-                <option value="mkv">MKV</option>
-                <option value="avi">AVI</option>
-                <option value="m4v">M4V</option>
-              </optgroup>
-            </select>
+            <input type="hidden" id="converter-format-select" value="png" />
+            <div class="custom-dropdown" id="dd-format" style="width: 100%;">
+              <button class="custom-dropdown-btn" id="btn-dd-format" title="Select Target Format" style="width: 100%; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-base); color: var(--text-main); font-family: 'Poppins', sans-serif; padding: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span id="format-label" style="display: flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded" id="format-icon" style="font-size: 18px;">image</span> PNG</span>
+                <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+              </button>
+              <div class="custom-dropdown-content" id="content-dd-format" style="width: 100%; max-height: 250px; overflow-y: auto;">
+                <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Images</div>
+                <div class="custom-dropdown-item" data-value="png"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> PNG</div>
+                <div class="custom-dropdown-item" data-value="jpg"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> JPG</div>
+                <div class="custom-dropdown-item" data-value="webp"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> WebP</div>
+                <div class="custom-dropdown-item" data-value="tiff"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> TIFF</div>
+                <div class="custom-dropdown-item" data-value="avif"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> AVIF</div>
+                <div class="custom-dropdown-item" data-value="heic"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> HEIC</div>
+                <div class="custom-dropdown-item" data-value="bmp"><span class="material-symbols-rounded" style="font-size: 18px;">image</span> BMP</div>
+                <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">Videos</div>
+                <div class="custom-dropdown-item" data-value="mp4"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> MP4</div>
+                <div class="custom-dropdown-item" data-value="mov"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> MOV</div>
+                <div class="custom-dropdown-item" data-value="webm"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> WebM</div>
+                <div class="custom-dropdown-item" data-value="mkv"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> MKV</div>
+                <div class="custom-dropdown-item" data-value="avi"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> AVI</div>
+                <div class="custom-dropdown-item" data-value="m4v"><span class="material-symbols-rounded" style="font-size: 18px;">movie</span> M4V</div>
+              </div>
+            </div>
           </label>
 
           <div style="display: flex; gap: 8px; margin-top: 10px">
@@ -911,5 +979,52 @@
     </div>
 
     <script type="module" src="./renderer.js"></script>
+  
+    <!-- Custom Dropdown JS -->
+    <script>
+      (function() {
+        function setup(prefix) {
+          const btn = document.getElementById('btn-dd-' + prefix);
+          const content = document.getElementById('content-dd-' + prefix);
+          const input = document.getElementById('converter-' + (prefix === 'format' ? 'format' : 'source') + '-select');
+          const label = document.getElementById(prefix + '-label');
+          
+          if(btn) {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              document.querySelectorAll('.custom-dropdown-content').forEach(c => {
+                if(c !== content) c.classList.remove('show');
+              });
+              content.classList.toggle('show');
+            });
+            
+            content.querySelectorAll('.custom-dropdown-item').forEach(item => {
+              item.addEventListener('click', (e) => {
+                input.value = item.dataset.value;
+                const iconText = item.querySelector('.material-symbols-rounded').textContent;
+                label.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px;">' + iconText + '</span> ' + item.textContent.replace(iconText, '').trim();
+                content.classList.remove('show');
+                
+                // Dispatch custom event for source format logic
+                if (prefix === 'source') {
+                  document.dispatchEvent(new CustomEvent('source-format-changed', { detail: input.value }));
+                }
+              });
+            });
+          }
+        }
+        
+        setup('format');
+        setup('source');
+        
+        document.addEventListener('click', (e) => {
+          document.querySelectorAll('.custom-dropdown-content').forEach(content => {
+            if(!content.contains(e.target) && !e.target.closest('.custom-dropdown-btn')) {
+              content.classList.remove('show');
+            }
+          });
+        });
+      })();
+    </script>
   </body>
 </html>

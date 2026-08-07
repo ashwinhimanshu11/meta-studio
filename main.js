@@ -9,6 +9,7 @@ const { execFile } = require("child_process");
 let mainWindow;
 let cancelCurrentTask = false;
 let activeChildProcesses = new Set();
+let childWindows = new Set();
 
 ipcMain.on("cancel-task", () => {
   cancelCurrentTask = true;
@@ -736,6 +737,8 @@ ipcMain.on("open-image-editor-window", (event, payload) => {
     height: 700,
     minWidth: 800,
     minHeight: 600,
+    show: false,
+    backgroundColor: '#171717',
     title: "Image Editor - " + path.basename(payload.filePath),
     webPreferences: {
       nodeIntegration: false,
@@ -743,8 +746,15 @@ ipcMain.on("open-image-editor-window", (event, payload) => {
       preload: path.join(__dirname, "preload.js"),
     },
   });
+
   editorWin.setMenuBarVisibility(false);
+  childWindows.add(editorWin);
+  editorWin.on('closed', () => {
+    childWindows.delete(editorWin);
+  });
+  
   editorWin.loadFile("image-editor-window.html");
+  editorWin.once("ready-to-show", () => editorWin.show());
   editorWin.webContents.once("did-finish-load", () =>
     editorWin.webContents.send("init-editor", payload),
   );
