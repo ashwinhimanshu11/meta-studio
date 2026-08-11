@@ -35,6 +35,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openVideoEditorWindow: (payload) => ipcRenderer.send("open-video-editor-window", payload),
   onInitVideoEditor: (callback) =>
     ipcRenderer.on("init-video-editor", (event, payload) => callback(payload)),
+  prepareVideoProxy: (payload) => ipcRenderer.invoke("prepare-video-proxy", payload),
+  onProxyProgress: (callback) => ipcRenderer.on("proxy-progress", (event, p) => callback(p)),
+  saveVideo: (payload) => ipcRenderer.invoke("save-video", payload),
   onMetadataUpdated: (callback) =>
     ipcRenderer.on("metadata-updated", (event, paths) => callback(paths)),
+  selectFilesDialog: (options) => ipcRenderer.invoke("select-files-dialog", options),
+  selectFolderDialog: (options) => ipcRenderer.invoke("select-folder-dialog", options),
+  bulkMuteVideos: (payload) => ipcRenderer.invoke("bulk-mute-videos", payload),
 });

@@ -10,12 +10,11 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
       rel="stylesheet"
     />
-
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
     />
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <link rel="stylesheet" href="./styles.css" />
     <style>
       body {
@@ -27,9 +26,19 @@
         font-family: "Poppins", sans-serif;
       }
       .exif-editor-header {
-        padding: 22px 28px 16px;
+        padding: 16px 20px;
         background: var(--bg-panel);
         border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .header-title-area {
+        flex: 1;
+        min-width: 0;
+        max-width: 25vw;
       }
       .exif-editor-header p {
         margin: 0 0 4px;
@@ -42,7 +51,118 @@
         margin: 0;
         font-size: 19px;
         line-height: 1.35;
-        word-break: break-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-main);
+      }
+      .header-actions {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 1;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        align-items: center;
+        max-width: 100%;
+        padding-bottom: 4px;
+      }
+      .header-actions::-webkit-scrollbar {
+        height: 4px;
+      }
+      .header-actions::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+      }
+      .action-btn {
+        padding: 8px 16px;
+        font-family: "Poppins", sans-serif;
+        font-size: 13px;
+        font-weight: 300;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--bg-base);
+        color: var(--text-main);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .action-btn:hover {
+        background: var(--bg-hover);
+      }
+      .action-btn.primary {
+        background: var(--gts-gradient);
+        color: #fff;
+        border: none;
+      }
+      .action-btn.primary:hover {
+        opacity: 0.9;
+      }
+      .action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(100%);
+      }
+      /* Dropdown Menu */
+      .dropdown-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+      .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 8px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        display: none;
+        flex-direction: column;
+        min-width: 150px;
+        z-index: 1000;
+        overflow: hidden;
+      }
+      .dropdown-menu.show {
+        display: flex;
+      }
+      .dropdown-item {
+        padding: 10px 16px;
+        background: none;
+        border: none;
+        color: var(--text-main);
+        font-family: "Poppins", sans-serif;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+      .dropdown-item:hover {
+        background: var(--bg-hover);
+      }
+      /* Status Toast */
+      #status-toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-panel);
+        color: var(--text-main);
+        padding: 10px 20px;
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        border: 1px solid var(--border-color);
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 9999;
+      }
+      #status-toast.show {
+        opacity: 1;
       }
       .editor-container {
         flex: 1;
@@ -51,6 +171,8 @@
         justify-content: center;
         padding: 20px;
         background: var(--bg-base);
+        position: relative;
+        overflow: hidden;
       }
       #editor-video {
         max-width: 100%;
@@ -59,25 +181,310 @@
         border-radius: 6px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       }
+      #crop-overlay-container {
+        display: none;
+        position: absolute;
+        top: 20px; left: 20px; right: 20px; bottom: 20px;
+        align-items: center; justify-content: center;
+      }
+      .trim-inputs {
+        display: flex; align-items: center; gap: 4px;
+        background: var(--bg-panel); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);
+        flex-shrink: 0;
+      }
+      .trim-inputs input {
+        width: 70px; background: transparent; border: none; color: var(--text-main); outline: none; text-align: center; font-family: inherit; font-size: 12px;
+      }
+      
+      /* Make inputs look a bit better in dark mode */
+      [data-theme="dark"] .trim-inputs input::placeholder { color: rgba(255,255,255,0.4); }
     </style>
   </head>
   <body>
     <div class="exif-editor-header">
-      <p>Video Editor</p>
-      <h2 id="filename-display">Loading Video...</h2>
+      <div class="header-title-area">
+        <p>Video Editor</p>
+        <h2 id="filename-display">Loading Video...</h2>
+      </div>
+      <div class="header-actions">
+        <!-- Trim controls -->
+        <div class="trim-inputs">
+          <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">content_cut</span>
+          <input type="number" id="trim-start" placeholder="Start(s)" step="0.1">
+          <button id="btn-set-start" class="action-btn" style="padding: 2px 4px; font-size: 10px; min-width: 0; border: none;" title="Set to current time">SET</button>
+          <span style="color: var(--text-muted);"> - </span>
+          <input type="number" id="trim-end" placeholder="End(s)" step="0.1">
+          <button id="btn-set-end" class="action-btn" style="padding: 2px 4px; font-size: 10px; min-width: 0; border: none;" title="Set to current time">SET</button>
+        </div>
+        
+        <button id="btn-crop-mode" class="action-btn">
+          <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
+        </button>
+        <button id="btn-mute-mode" class="action-btn" title="Mute Video">
+          <span class="material-symbols-rounded" id="mute-icon" style="font-size: 18px;">volume_up</span> <span id="mute-text">Mute</span>
+        </button>
+        <button id="btn-cancel" class="action-btn" disabled title="Cancel all changes">
+          <span class="material-symbols-rounded" style="font-size: 18px;">undo</span> Cancel
+        </button>
+        <div class="dropdown-wrapper">
+          <button id="btn-save" class="action-btn primary" disabled>
+            <span class="material-symbols-rounded" style="font-size: 18px;">save</span> Save
+          </button>
+          <div id="save-dropdown" class="dropdown-menu">
+            <button id="btn-save-replace" class="dropdown-item">Replace Original</button>
+            <button id="btn-save-new" class="dropdown-item">Save as New File</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="editor-container">
+    
+    <div class="editor-container" id="editor-container-main">
       <video id="editor-video" controls></video>
+      <div id="crop-overlay-container">
+        <img id="crop-image" style="max-width: 100%; max-height: 100%; display: block;" />
+      </div>
     </div>
+    
+    <div id="status-toast">Video saved successfully!</div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <script>
+      let currentFilePath = null;
+      let isEdited = false;
+      let isCroppingMode = false;
+      let isMuted = false;
+      let cropper = null;
+      let cropData = null; // { x, y, width, height }
+      
+      const video = document.getElementById("editor-video");
+      const trimStart = document.getElementById("trim-start");
+      const trimEnd = document.getElementById("trim-end");
+      
+      function showToast(message) {
+        const toast = document.getElementById("status-toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
+      
+      function enableSave() {
+        isEdited = true;
+        document.getElementById("btn-save").disabled = false;
+        document.getElementById("btn-cancel").disabled = false;
+      }
+      
+      function disableSave() {
+        isEdited = false;
+        document.getElementById("btn-save").disabled = true;
+        document.getElementById("btn-cancel").disabled = true;
+        document.getElementById("save-dropdown").classList.remove("show");
+        cropData = null;
+        isMuted = false;
+        updateMuteUI();
+        trimStart.value = "";
+        trimEnd.value = "";
+        video.style.objectViewBox = "none";
+        exitCropMode();
+      }
+      
+      document.getElementById("btn-set-start").addEventListener("click", () => {
+        trimStart.value = video.currentTime.toFixed(2);
+        enableSave();
+      });
+      document.getElementById("btn-set-end").addEventListener("click", () => {
+        trimEnd.value = video.currentTime.toFixed(2);
+        enableSave();
+      });
+      
+      trimStart.addEventListener("input", enableSave);
+      trimEnd.addEventListener("input", enableSave);
+      
+      document.getElementById("btn-cancel").addEventListener("click", disableSave);
+      
+      function updateMuteUI() {
+        document.getElementById("mute-icon").textContent = isMuted ? "volume_off" : "volume_up";
+        document.getElementById("mute-text").textContent = isMuted ? "Unmute" : "Mute";
+        if (isMuted) {
+          document.getElementById("btn-mute-mode").classList.add("primary");
+        } else {
+          document.getElementById("btn-mute-mode").classList.remove("primary");
+        }
+      }
+
+      document.getElementById("btn-mute-mode").addEventListener("click", () => {
+        isMuted = !isMuted;
+        updateMuteUI();
+        enableSave();
+      });
+
+      function exitCropMode() {
+        isCroppingMode = false;
+        document.getElementById("crop-text").textContent = "Crop";
+        document.getElementById("crop-icon").textContent = "crop";
+        document.getElementById("btn-crop-mode").classList.remove("primary");
+        document.getElementById("crop-overlay-container").style.display = "none";
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        video.style.display = "block";
+      }
+      
+      document.getElementById("btn-crop-mode").addEventListener("click", () => {
+        if (isCroppingMode) {
+          // Apply Crop
+          if (cropper) {
+            const data = cropper.getData();
+            if (data.width > 0 && data.height > 0) {
+              cropData = { x: Math.round(data.x), y: Math.round(data.y), w: Math.round(data.width), h: Math.round(data.height) };
+              enableSave();
+              
+              const top = cropData.y;
+              const left = cropData.x;
+              const right = video.videoWidth - (cropData.x + cropData.w);
+              const bottom = video.videoHeight - (cropData.y + cropData.h);
+              video.style.objectViewBox = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+            }
+          }
+          exitCropMode();
+        } else {
+          // Enter Crop
+          if (!video.videoWidth) {
+            alert("Video is not fully loaded yet. Please play the video first.");
+            return;
+          }
+          isCroppingMode = true;
+          document.getElementById("crop-text").textContent = "Apply Crop";
+          document.getElementById("crop-icon").textContent = "check";
+          document.getElementById("btn-crop-mode").classList.add("primary");
+          
+          video.pause();
+          
+          try {
+            const tempBox = video.style.objectViewBox;
+            video.style.objectViewBox = "none";
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            video.style.objectViewBox = tempBox;
+            
+            const cropImg = document.getElementById("crop-image");
+            
+            // Assign onload before setting src for dataURIs
+            cropImg.onload = () => {
+              if (cropper) cropper.destroy();
+              cropper = new Cropper(cropImg, {
+                viewMode: 1,
+                dragMode: 'crop',
+                autoCrop: false,
+                restore: false,
+                zoomable: false,
+                guides: true
+              });
+              if (cropData) {
+                cropper.setData({ x: cropData.x, y: cropData.y, width: cropData.w, height: cropData.h });
+              }
+            };
+            
+            cropImg.src = canvas.toDataURL("image/jpeg");
+            
+            video.style.display = "none";
+            document.getElementById("crop-overlay-container").style.display = "flex";
+          } catch (err) {
+            alert("Failed to grab video frame for cropping: " + err.message);
+            exitCropMode();
+          }
+        }
+      });
+      
+      document.getElementById("btn-save").addEventListener("click", (e) => {
+        if (!isEdited) return;
+        e.stopPropagation();
+        document.getElementById("save-dropdown").classList.toggle("show");
+      });
+      document.addEventListener("click", () => {
+        document.getElementById("save-dropdown").classList.remove("show");
+      });
+      
+      async function triggerSave(replace) {
+        document.getElementById("save-dropdown").classList.remove("show");
+        const ts = parseFloat(trimStart.value);
+        const te = parseFloat(trimEnd.value);
+        
+        const payload = {
+          filePath: currentFilePath,
+          replace,
+          trimStart: isNaN(ts) ? null : ts,
+          trimEnd: isNaN(te) ? null : te,
+          cropX: cropData ? cropData.x : null,
+          cropY: cropData ? cropData.y : null,
+          cropW: cropData ? cropData.w : null,
+          cropH: cropData ? cropData.h : null,
+          mute: isMuted
+        };
+        
+        const toast = document.getElementById("status-toast");
+        toast.textContent = "Saving video...";
+        toast.classList.add("show");
+        
+        const res = await window.electronAPI.saveVideo(payload);
+        
+        if (res.error) {
+          toast.textContent = "Error: " + res.error;
+          setTimeout(() => toast.classList.remove("show"), 3000);
+        } else {
+          currentFilePath = res.newPath;
+          disableSave();
+          showToast("Video saved successfully!");
+        }
+      }
+      
+      document.getElementById("btn-save-replace").addEventListener("click", () => triggerSave(true));
+      document.getElementById("btn-save-new").addEventListener("click", () => triggerSave(false));
+      
       window.electronAPI.onInitVideoEditor(async (payload) => {
         if (payload.theme === "dark") {
           document.documentElement.setAttribute("data-theme", "dark");
         }
         
+        currentFilePath = payload.filePath;
         document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
-        document.getElementById("editor-video").src = 'file://' + payload.filePath;
+        
+        const overlay = document.createElement("div");
+        overlay.id = "proxy-overlay";
+        overlay.style = "display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-base); z-index: 100; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);";
+        overlay.innerHTML = `
+          <div style="font-size: 16px; margin-bottom: 12px; font-weight: 500;">Generating Playable Preview...</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Format not natively supported. Transcoding...</div>
+          <div style="width: 300px; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden;">
+            <div id="proxy-progress-bar" style="width: 0%; height: 100%; background: var(--text-main); transition: width 0.2s;"></div>
+          </div>
+          <div id="proxy-text" style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">0%</div>
+        `;
+        document.getElementById("editor-container-main").appendChild(overlay);
+        overlay.style.display = "none";
+        
+        let proxyStarted = false;
+        
+        window.electronAPI.onProxyProgress((percent) => {
+          if (!proxyStarted) {
+            proxyStarted = true;
+            overlay.style.display = "flex";
+          }
+          document.getElementById("proxy-progress-bar").style.width = percent + "%";
+          document.getElementById("proxy-text").textContent = percent + "%";
+        });
+        
+        const res = await window.electronAPI.prepareVideoProxy(payload.filePath);
+        if (overlay) overlay.remove();
+        
+        if (res.error) {
+          alert(res.error);
+        } else {
+          video.src = 'file://' + res.proxyPath;
+        }
       });
     </script>
   </body>

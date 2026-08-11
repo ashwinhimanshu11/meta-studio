@@ -21,11 +21,143 @@ export function initVideoEditor() {
       });
     }
   });
+
+  setupBulkMuteLogic();
+}
+
+let bulkMuteFilesList = [];
+
+function setupBulkMuteLogic() {
+  document.getElementById("bulk-mute-files-opt").addEventListener("click", async () => {
+    const result = await window.electronAPI.selectFilesDialog();
+    if (!result.canceled && result.filePaths.length > 0) {
+      // Filter out non-videos just in case
+      bulkMuteFilesList = result.filePaths.filter(p => {
+        const ext = p.split('.').pop().toLowerCase();
+        return videoExtensions.includes(ext);
+      });
+      showBulkMuteContainer();
+    }
+  });
+
+  document.getElementById("bulk-mute-folder-opt").addEventListener("click", async () => {
+    const result = await window.electronAPI.selectFolderDialog();
+    if (!result.canceled && result.filePaths.length > 0) {
+      const folderPath = result.filePaths[0];
+      const entries = await window.electronAPI.readDirectoryRecursive(folderPath);
+      if (!entries.error) {
+        bulkMuteFilesList = entries
+          .filter(e => !e.isDirectory && videoExtensions.includes(e.extension))
+          .map(e => e.path);
+        showBulkMuteContainer();
+      }
+    }
+  });
+
+  document.getElementById("cancel-bulk-mute-btn").addEventListener("click", () => {
+    bulkMuteFilesList = [];
+    document.getElementById("video-bulk-mute-container").style.display = "none";
+    document.getElementById("video-empty-state").style.display = "flex";
+  });
+
+  document.getElementById("perform-bulk-mute-btn").addEventListener("click", async () => {
+    const checkboxes = document.querySelectorAll('.bulk-mute-cb:checked');
+    const selectedFiles = Array.from(checkboxes).map(cb => cb.dataset.path);
+    if (selectedFiles.length === 0) return;
+    
+    // Show progress modal
+    const progressModal = document.getElementById("progress-modal");
+    const progressTitle = document.getElementById("progress-title");
+    const progressFill = document.getElementById("progress-fill");
+    const progressPercent = document.getElementById("progress-percent");
+    const progressCount = document.getElementById("progress-count");
+    const progressDetail = document.getElementById("progress-detail");
+    
+    progressModal.classList.add("active");
+    progressTitle.textContent = "Muting Videos";
+    progressFill.style.width = "0%";
+    progressPercent.textContent = "0%";
+    progressCount.textContent = `0 / ${selectedFiles.length}`;
+    progressDetail.textContent = "Starting...";
+
+    const res = await window.electronAPI.bulkMuteVideos({ files: selectedFiles });
+    
+    progressModal.classList.remove("active");
+    
+    if (res.error) {
+      alert("Error: " + res.error);
+    } else {
+      alert("Successfully muted " + res.results.filter(r => r.success).length + " videos.");
+      // go back to empty state
+      document.getElementById("cancel-bulk-mute-btn").click();
+    }
+  });
+}
+
+function showBulkMuteContainer() {
+  document.getElementById("video-empty-state").style.display = "none";
+  document.getElementById("video-preview-container").style.display = "none";
+  document.getElementById("video-bulk-mute-container").style.display = "flex";
+  
+  document.getElementById("bulk-mute-count").textContent = `${bulkMuteFilesList.length} video(s) selected`;
+  
+  const listEl = document.getElementById("bulk-mute-list");
+  listEl.innerHTML = "";
+  
+  if (bulkMuteFilesList.length === 0) {
+    listEl.innerHTML = "<div style='color: var(--text-muted); padding: 10px;'>No valid video files found in the selection.</div>";
+    document.getElementById("perform-bulk-mute-btn").disabled = true;
+    return;
+  }
+  
+  document.getElementById("perform-bulk-mute-btn").disabled = false;
+  
+  bulkMuteFilesList.forEach(path => {
+    const item = document.createElement("label");
+    item.style.padding = "8px";
+    item.style.borderBottom = "1px solid var(--border-color)";
+    item.style.fontSize = "13px";
+    item.style.wordBreak = "break-all";
+    item.style.display = "flex";
+    item.style.alignItems = "center";
+    item.style.gap = "10px";
+    item.style.cursor = "pointer";
+    item.style.transition = "background 0.2s";
+    
+    item.addEventListener("mouseenter", () => item.style.background = "var(--bg-hover)");
+    item.addEventListener("mouseleave", () => item.style.background = "transparent");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.className = "bulk-mute-cb";
+    cb.dataset.path = path;
+    cb.style.cursor = "pointer";
+    cb.style.width = "14px";
+    cb.style.height = "14px";
+    cb.style.accentColor = "var(--gts-teal)";
+    cb.style.margin = "0";
+    
+    cb.addEventListener("change", () => {
+       const selectedCount = document.querySelectorAll('.bulk-mute-cb:checked').length;
+       document.getElementById("bulk-mute-count").textContent = `${selectedCount} video(s) selected`;
+       document.getElementById("perform-bulk-mute-btn").disabled = selectedCount === 0;
+    });
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = path;
+    labelSpan.style.flex = "1";
+
+    item.appendChild(cb);
+    item.appendChild(labelSpan);
+    listEl.appendChild(item);
+  });
 }
 
 export async function loadVideoEditorFolder(path) {
   document.getElementById("video-folder-input").value = path;
   document.getElementById("video-empty-state").style.display = "flex";
+  document.getElementById("video-bulk-mute-container").style.display = "none";
   document.getElementById("video-preview-container").style.display = "none";
   currentSelectedVideoPath = null;
   currentSelectedVideoExtension = null;
@@ -108,6 +240,7 @@ async function renderVideoEditorDirectory(path, containerElement) {
         currentSelectedVideoExtension = entry.extension;
         
         document.getElementById("video-empty-state").style.display = "none";
+        document.getElementById("video-bulk-mute-container").style.display = "none";
         const previewContainer = document.getElementById("video-preview-container");
         previewContainer.style.display = "flex";
         

@@ -844,7 +844,7 @@ tr:hover td {
     animation: fadeIn 0.4s ease;
 }
 
-.main-empty-state .material-symbols-rounded {
+.main-empty-state > .material-symbols-rounded {
     font-size: 72px !important;
     color: var(--gts-teal);
     margin-bottom: 20px;

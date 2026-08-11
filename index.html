@@ -869,10 +869,39 @@
       <div class="resizer"></div>
 
       <div class="main-content editor-main" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 30px;">
-        <div id="video-empty-state" class="main-empty-state">
+        <div id="video-empty-state" class="main-empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
           <span class="material-symbols-rounded">movie</span>
           <h2>Select a Video</h2>
           <p>Choose a video from the sidebar to view it.</p>
+          
+          <div class="custom-dropdown" id="dd-bulk-mute" style="margin-top: 20px;">
+            <button class="custom-dropdown-btn" id="btn-dd-bulk-mute" style="padding: 8px 16px; font-size: 13px; font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; border-radius: 6px; transition: background 0.2s;">
+              <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">volume_off</span> Bulk Mute
+              <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">expand_more</span>
+            </button>
+            <div class="custom-dropdown-content" id="content-dd-bulk-mute" style="width: 100%; min-width: 120px;">
+              <div class="custom-dropdown-item" id="bulk-mute-files-opt" data-value="files"><span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">draft</span> Files</div>
+              <div class="custom-dropdown-item" id="bulk-mute-folder-opt" data-value="folder"><span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">folder</span> Folder</div>
+            </div>
+          </div>
+        </div>
+        
+        <div id="video-bulk-mute-container" style="display: none; flex-direction: column; height: 100%; width: 100%;">
+          <div class="content-header" style="margin-bottom: 20px;">
+            <div>
+              <h2 style="margin: 0">Bulk Mute</h2>
+              <span id="bulk-mute-count" style="color: var(--text-muted); font-size: 13px; font-weight: 300;">0 files selected</span>
+            </div>
+          </div>
+          
+          <div id="bulk-mute-list" style="flex: 1; overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 20px;">
+            <!-- list of files -->
+          </div>
+          
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button id="cancel-bulk-mute-btn" class="icon-btn" style="padding: 10px 20px;">Cancel</button>
+            <button id="perform-bulk-mute-btn" class="icon-btn active" style="padding: 10px 20px; background: var(--gts-gradient); color: #fff; border: none;">Mute Videos</button>
+          </div>
         </div>
         <div id="video-preview-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
           <video id="video-preview-vid" style="max-width: 100%; max-height: 80%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" controls></video>
@@ -1016,6 +1045,7 @@
         
         setup('format');
         setup('source');
+        setup('bulk-mute');
         
         document.addEventListener('click', (e) => {
           document.querySelectorAll('.custom-dropdown-content').forEach(content => {

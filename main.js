@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, clipboard } = require("electron");
+const { app, BrowserWindow, ipcMain, clipboard, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { execFile } = require("child_process");
@@ -823,6 +823,139 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
   });
 });
 
+
+ipcMain.handle("save-video", async (event, payload) => {
+  const os = require('os');
+  const path = require('path');
+  const fs = require('fs');
+  const { filePath, replace, trimStart, trimEnd, cropW, cropH, cropX, cropY, mute } = payload;
+  
+  const ext = path.extname(filePath);
+  const tempPath = path.join(os.tmpdir(), "meta_studio_video_out_" + Date.now() + ext);
+  
+  let args = [];
+  
+  if (trimStart !== null && trimStart !== undefined) {
+    args.push("-ss", String(trimStart));
+  }
+  
+  args.push("-i", filePath);
+  
+  if (trimEnd !== null && trimEnd !== undefined) {
+    const dur = trimEnd - (trimStart || 0);
+    args.push("-t", String(dur));
+  }
+  
+  if (cropW !== null && cropH !== null) {
+    args.push("-vf", `crop=${cropW}:${cropH}:${cropX}:${cropY}`);
+  }
+  
+  if (mute) {
+    args.push("-c:v", "libx264", "-crf", "23", "-preset", "fast", "-an", "-y", tempPath);
+  } else {
+    args.push("-c:v", "libx264", "-crf", "23", "-preset", "fast", "-c:a", "aac", "-y", tempPath);
+  }
+  
+  return new Promise((resolve) => {
+    const ffmpegPath = getBundledBinaryPath("ffmpeg");
+    const child = execFile(ffmpegPath, args, (err) => {
+      activeChildProcesses.delete(child);
+      if (cancelCurrentTask) {
+        resolve({ error: "Cancelled" });
+      } else if (err) {
+        resolve({ error: "Save failed: " + err.message });
+      } else {
+        if (replace) {
+          fs.copyFileSync(tempPath, filePath);
+          fs.unlinkSync(tempPath);
+          mainWindow.webContents.send("metadata-updated", [filePath]);
+          resolve({ success: true, newPath: filePath });
+        } else {
+          const newPath = getUniqueOutputPath(filePath, ext.replace(".", ""));
+          fs.copyFileSync(tempPath, newPath);
+          fs.unlinkSync(tempPath);
+          mainWindow.webContents.send("metadata-updated", [newPath]);
+          resolve({ success: true, newPath: newPath });
+        }
+      }
+    });
+    activeChildProcesses.add(child);
+  });
+});
+
+// ==========================================
+// VIDEO PROXY SYSTEM
+// ==========================================
+ipcMain.handle("prepare-video-proxy", async (event, payload) => {
+  const os = require('os');
+  const path = require('path');
+  
+  const filePath = typeof payload === "string" ? payload : payload.filePath;
+  const cropData = typeof payload === "string" ? null : payload.cropData;
+  const ext = path.extname(filePath).toLowerCase();
+  
+  // Natively supported by Chromium (mostly)
+  if (['.mp4', '.webm', '.ogg'].includes(ext) && !cropData) {
+    return { proxyPath: filePath }; // Try to load directly
+  }
+  
+  return new Promise((resolve) => {
+    const proxyPath = path.join(os.tmpdir(), "meta_studio_proxy_" + Date.now() + ".mp4");
+    const ffmpegPath = getBundledBinaryPath("ffmpeg");
+    
+    let args = ["-i", filePath];
+    if (cropData) {
+      args.push("-vf", `crop=${cropData.w}:${cropData.h}:${cropData.x}:${cropData.y}`);
+    }
+    
+    args.push(
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "28", // lower quality, higher speed
+      "-c:a", "aac",
+      "-b:a", "128k",
+      "-y",
+      proxyPath
+    );
+    
+    let totalDurationSec = 0;
+    const child = execFile(ffmpegPath, args, (error) => {
+      activeChildProcesses.delete(child);
+      if (cancelCurrentTask) {
+        resolve({ error: "Cancelled" });
+      } else if (error) {
+        resolve({ error: "Preview generation failed." });
+      } else {
+        resolve({ proxyPath: proxyPath });
+      }
+    });
+    
+    activeChildProcesses.add(child);
+    
+    child.stderr.on("data", (data) => {
+      const str = data.toString();
+      if (!totalDurationSec) {
+        const durMatch = str.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+        if (durMatch) {
+          totalDurationSec =
+            parseInt(durMatch[1]) * 3600 +
+            parseInt(durMatch[2]) * 60 +
+            parseFloat(durMatch[3]);
+        }
+      }
+      const timeMatch = str.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      if (timeMatch && totalDurationSec > 0) {
+        const currentSec =
+          parseInt(timeMatch[1]) * 3600 +
+          parseInt(timeMatch[2]) * 60 +
+          parseFloat(timeMatch[3]);
+        const percent = Math.min(100, Math.round((currentSec / totalDurationSec) * 100));
+        event.sender.send("proxy-progress", percent);
+      }
+    });
+  });
+});
+
 // ==========================================
 // VIDEO EDITOR POPUP ROUTER
 // ==========================================
@@ -845,4 +978,85 @@ ipcMain.on("open-video-editor-window", (event, payload) => {
   videoWin.webContents.once("did-finish-load", () =>
     videoWin.webContents.send("init-video-editor", payload),
   );
+});
+
+ipcMain.handle("select-files-dialog", async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'm4v', 'mpeg', 'mpg', '3gp'] }]
+  });
+  return result;
+});
+
+ipcMain.handle("select-folder-dialog", async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  return result;
+});
+
+ipcMain.handle("bulk-mute-videos", async (event, payload) => {
+  cancelCurrentTask = false;
+  activeChildProcesses.clear();
+  const files = Array.isArray(payload?.files) ? payload.files : [];
+  if (files.length === 0) return { error: "No files to mute." };
+
+  const ffmpegPath = getBundledBinaryPath("ffmpeg");
+  if (!fs.existsSync(ffmpegPath)) return { error: "Bundled FFmpeg binary not found." };
+
+  const results = [];
+  const generatedFiles = [];
+
+  for (let i = 0; i < files.length; i++) {
+    if (cancelCurrentTask) break;
+
+    const filePath = files[i];
+    if (!fs.existsSync(filePath)) {
+      results.push({ inputPath: filePath, error: "File not found." });
+      continue;
+    }
+
+    const parsed = path.parse(filePath);
+    let outputPath = path.join(parsed.dir, `${parsed.name}_muted${parsed.ext}`);
+    let counter = 2;
+    while (fs.existsSync(outputPath) && outputPath !== filePath) {
+      outputPath = path.join(parsed.dir, `${parsed.name}_muted_${counter}${parsed.ext}`);
+      counter++;
+    }
+    generatedFiles.push(outputPath);
+
+    event.sender.send("task-progress", {
+      title: "Muting Videos",
+      current: i,
+      total: files.length,
+      detail: `Muting: ${parsed.base}`
+    });
+
+    // Copy video stream, remove audio stream
+    const args = ["-y", "-hide_banner", "-i", filePath, "-c:v", "copy", "-an", outputPath];
+    
+    const result = await new Promise((resolve) => {
+      const child = execFile(ffmpegPath, args, (error, stdout, stderr) => {
+        activeChildProcesses.delete(child);
+        if (error && error.killed) resolve({ inputPath: filePath, outputPath, error: "Cancelled" });
+        else if (error) resolve({ inputPath: filePath, outputPath, error: stderr || error.message });
+        else resolve({ inputPath: filePath, outputPath, success: true });
+      });
+      activeChildProcesses.add(child);
+    });
+    results.push(result);
+  }
+
+  if (cancelCurrentTask) {
+    await new Promise(r => setTimeout(r, 600));
+    for (const file of generatedFiles) {
+      try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch(e) {}
+    }
+    return { error: "Task cancelled by user. Generated files were removed." };
+  }
+
+  const failed = results.filter(r => r.error);
+  if (failed.length > 0) return { error: `${failed.length} file(s) failed to mute.`, results };
+  
+  return { success: true, results };
 });
