@@ -191,6 +191,7 @@ function printImage(imagePath) {
 }
 
 let isEdited = false;
+let currentFilePath = null;
 
 // --- Injected Image Editor Logic ---
 

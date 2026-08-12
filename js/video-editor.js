@@ -258,6 +258,7 @@ async function renderVideoEditorDirectory(path, containerElement) {
 }
 
 let isEdited = false;
+let currentFilePath = null;
 
 // --- Injected Video Editor Logic ---
 
