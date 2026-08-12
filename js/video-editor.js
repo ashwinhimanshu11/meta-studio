@@ -301,6 +301,7 @@ let currentFilePath = null;
         video.style.objectViewBox = "none";
         exitCropMode();
         exitBlurMode();
+        if (typeof updateBlurPreview === 'function') updateBlurPreview();
       }
       
       document.getElementById("btn-set-start").addEventListener("click", () => {
@@ -477,6 +478,92 @@ let currentFilePath = null;
         document.getElementById("apply-blur-dropdown").classList.toggle("show");
       });
 
+      function updateBlurPreview() {
+        let overlay = document.getElementById("blur-preview-overlay");
+        if (!overlay) {
+          overlay = document.createElement("div");
+          overlay.id = "blur-preview-overlay";
+          overlay.style.position = "absolute";
+          overlay.style.backdropFilter = "blur(15px)";
+          overlay.style.webkitBackdropFilter = "blur(15px)";
+          overlay.style.pointerEvents = "none";
+          overlay.style.zIndex = "10";
+          overlay.style.border = "1px solid rgba(255,255,255,0.4)";
+          overlay.style.borderRadius = "4px";
+          document.getElementById("video-preview-container").appendChild(overlay);
+        }
+        
+        if (!blurData || !video.videoWidth || video.style.display === "none") {
+          overlay.style.display = "none";
+          return;
+        }
+
+        if (blurData.start !== null && blurData.end !== null) {
+          const t = video.currentTime;
+          if (t < blurData.start || t > blurData.end) {
+            overlay.style.display = "none";
+            return;
+          }
+        }
+        overlay.style.display = "block";
+
+        const videoRect = video.getBoundingClientRect();
+        const containerRect = document.getElementById("video-preview-container").getBoundingClientRect();
+        
+        let intrinsicW = video.videoWidth;
+        let intrinsicH = video.videoHeight;
+        let leftOffset = 0;
+        let topOffset = 0;
+        
+        if (cropData) {
+          intrinsicW = cropData.w;
+          intrinsicH = cropData.h;
+          leftOffset = cropData.x;
+          topOffset = cropData.y;
+        }
+
+        const intrinsicRatio = intrinsicW / intrinsicH;
+        const elementRatio = videoRect.width / videoRect.height;
+        
+        let renderWidth = videoRect.width;
+        let renderHeight = videoRect.height;
+
+        if (elementRatio > intrinsicRatio) {
+          renderWidth = videoRect.height * intrinsicRatio;
+        } else {
+          renderHeight = videoRect.width / intrinsicRatio;
+        }
+
+        const renderX = videoRect.left - containerRect.left + (videoRect.width - renderWidth) / 2;
+        const renderY = videoRect.top - containerRect.top + (videoRect.height - renderHeight) / 2;
+
+        const scaleX = renderWidth / intrinsicW;
+        const scaleY = renderHeight / intrinsicH;
+
+        let bx = (blurData.x - leftOffset) * scaleX;
+        let by = (blurData.y - topOffset) * scaleY;
+        let bw = blurData.w * scaleX;
+        let bh = blurData.h * scaleY;
+
+        if (bx < 0) { bw += bx; bx = 0; }
+        if (by < 0) { bh += by; by = 0; }
+        if (bx + bw > renderWidth) { bw = renderWidth - bx; }
+        if (by + bh > renderHeight) { bh = renderHeight - by; }
+
+        if (bw <= 0 || bh <= 0) {
+          overlay.style.display = "none";
+          return;
+        }
+
+        overlay.style.left = (renderX + bx) + "px";
+        overlay.style.top = (renderY + by) + "px";
+        overlay.style.width = bw + "px";
+        overlay.style.height = bh + "px";
+      }
+
+      video.addEventListener("timeupdate", updateBlurPreview);
+      window.addEventListener("resize", updateBlurPreview);
+
       function applyBlurSettings(start, end) {
         if (cropper) {
           const data = cropper.getData();
@@ -486,6 +573,7 @@ let currentFilePath = null;
           }
         }
         exitBlurMode();
+        updateBlurPreview();
       }
 
       document.getElementById("btn-blur-entire").addEventListener("click", () => {
@@ -525,6 +613,12 @@ let currentFilePath = null;
       
       async function triggerSave(replace) {
         document.getElementById("save-dropdown-vid").classList.remove("show");
+        
+        const saveBtn = document.getElementById("btn-save-vid");
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px; animation: spin 1s linear infinite;">sync</span> Saving...';
+        saveBtn.disabled = true;
+
         const ts = parseFloat(trimStart.value);
         const te = parseFloat(trimEnd.value);
         
@@ -546,6 +640,9 @@ let currentFilePath = null;
         toast.classList.add("show");
         
         const res = await window.electronAPI.saveVideo(payload);
+        
+        saveBtn.innerHTML = originalText;
+        if (!isEdited) saveBtn.disabled = true;
         
         if (res.error) {
           toast.textContent = "Error: " + res.error;

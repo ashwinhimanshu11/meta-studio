@@ -956,7 +956,7 @@
           <h2>Select a Video</h2>
           <p>Choose a video from the sidebar to view it.</p>
           
-          <div class="custom-dropdown" id="dd-bulk-mute" style="margin-top: 20px;">
+          <div class="custom-dropdown" id="dd-bulk-mute" style="margin-top: 20px; width: auto;">
             <button class="custom-dropdown-btn" id="btn-dd-bulk-mute" style="padding: 8px 16px; font-size: 13px; font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); cursor: pointer; border-radius: 6px; transition: background 0.2s;">
               <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">volume_off</span> Bulk Mute
               <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">expand_more</span>
@@ -985,7 +985,7 @@
             <button id="perform-bulk-mute-btn" class="icon-btn active" style="padding: 10px 20px; background: var(--gts-gradient); color: #fff; border: none;">Mute Videos</button>
           </div>
         </div>
-        <div id="video-preview-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
+        <div id="video-preview-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; position: relative;">
           <video id="video-preview-vid" style="max-width: 100%; max-height: 80%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" controls></video>
           <div id="crop-overlay-container" style="display: none; position: absolute; top: 20px; left: 20px; right: 20px; bottom: 20px; align-items: center; justify-content: center;"><img id="crop-image" style="max-width: 100%; max-height: 100%; display: block;" /></div>
           <button id="video-edit-btn" class="icon-btn active" style="margin-top: 20px; padding: 12px 24px; font-weight: 400; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--gts-gradient); color: #fff; border: none; cursor: pointer; border-radius: 6px;">

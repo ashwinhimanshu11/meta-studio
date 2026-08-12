@@ -854,13 +854,23 @@ ipcMain.handle("save-video", async (event, payload) => {
     if (blurData.start !== null && blurData.end !== null) {
       enable = `:enable='between(t,${blurData.start},${blurData.end})'`;
     }
-    filterComplex += `[0:v]crop=${blurData.w}:${blurData.h}:${blurData.x}:${blurData.y},boxblur=20:10[b];[0:v][b]overlay=${blurData.x}:${blurData.y}${enable}[v1];`;
+    
+    // Ensure blur radius is not larger than allowed by box size
+    const maxLuma = Math.max(0, Math.floor(Math.min(blurData.w, blurData.h) / 2) - 1);
+    const maxChroma = Math.max(0, Math.floor(Math.min(blurData.w, blurData.h) / 4) - 1);
+    const lumaR = Math.min(20, maxLuma);
+    const chromaR = Math.min(20, maxChroma);
+    
+    filterComplex += `[0:v]crop=${blurData.w}:${blurData.h}:${blurData.x}:${blurData.y},boxblur=lr=${lumaR}:lp=10:cr=${chromaR}:cp=10[b];[0:v][b]overlay=${blurData.x}:${blurData.y}${enable}[v1];`;
     vOut = "[v1]";
   }
   
   if (cropW !== null && cropH !== null) {
     let inNode = vOut ? vOut : "[0:v]";
-    filterComplex += `${inNode}crop=${cropW}:${cropH}:${cropX}:${cropY}[vout];`;
+    // libx264 requires even dimensions for yuv420p
+    const safeCropW = cropW % 2 === 0 ? cropW : cropW - 1;
+    const safeCropH = cropH % 2 === 0 ? cropH : cropH - 1;
+    filterComplex += `${inNode}crop=${safeCropW}:${safeCropH}:${cropX}:${cropY}[vout];`;
     vOut = "[vout]";
   }
   
@@ -880,12 +890,12 @@ ipcMain.handle("save-video", async (event, payload) => {
   
   return new Promise((resolve) => {
     const ffmpegPath = getBundledBinaryPath("ffmpeg");
-    const child = execFile(ffmpegPath, args, (err) => {
+    const child = execFile(ffmpegPath, args, (err, stdout, stderr) => {
       activeChildProcesses.delete(child);
       if (cancelCurrentTask) {
         resolve({ error: "Cancelled" });
       } else if (err) {
-        resolve({ error: "Save failed: " + err.message });
+        resolve({ error: "Save failed: " + err.message + "\nFFmpeg Log: " + stderr });
       } else {
         if (replace) {
           fs.copyFileSync(tempPath, filePath);

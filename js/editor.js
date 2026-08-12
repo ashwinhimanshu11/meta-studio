@@ -618,6 +618,12 @@ let currentFilePath = null;
 
       async function handleSave(replace) {
         if (!isEdited) return;
+        document.getElementById("save-dropdown").classList.remove("show");
+
+        const saveBtn = document.getElementById("btn-save");
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px; animation: spin 1s linear infinite;">sync</span> Saving...';
+        saveBtn.disabled = true;
         
         // Get the final canvas data
         const canvas = cropper ? cropper.getCroppedCanvas() : null;
@@ -628,6 +634,9 @@ let currentFilePath = null;
           originalPath: currentFilePath,
           replace
         });
+        
+        saveBtn.innerHTML = originalText;
+        if (!isEdited) saveBtn.disabled = true;
         
         if (result.success) {
           showToast(`Saved to ${result.path.split(/[/\\]/).pop()}`);
