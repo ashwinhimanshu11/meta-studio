@@ -828,7 +828,7 @@ ipcMain.handle("save-video", async (event, payload) => {
   const os = require('os');
   const path = require('path');
   const fs = require('fs');
-  const { filePath, replace, trimStart, trimEnd, cropW, cropH, cropX, cropY, mute } = payload;
+  const { filePath, replace, trimStart, trimEnd, cropW, cropH, cropX, cropY, mute, blurData } = payload;
   
   const ext = path.extname(filePath);
   const tempPath = path.join(os.tmpdir(), "meta_studio_video_out_" + Date.now() + ext);
@@ -846,8 +846,30 @@ ipcMain.handle("save-video", async (event, payload) => {
     args.push("-t", String(dur));
   }
   
+  let filterComplex = "";
+  let vOut = "";
+  
+  if (blurData) {
+    let enable = "";
+    if (blurData.start !== null && blurData.end !== null) {
+      enable = `:enable='between(t,${blurData.start},${blurData.end})'`;
+    }
+    filterComplex += `[0:v]crop=${blurData.w}:${blurData.h}:${blurData.x}:${blurData.y},boxblur=20:10[b];[0:v][b]overlay=${blurData.x}:${blurData.y}${enable}[v1];`;
+    vOut = "[v1]";
+  }
+  
   if (cropW !== null && cropH !== null) {
-    args.push("-vf", `crop=${cropW}:${cropH}:${cropX}:${cropY}`);
+    let inNode = vOut ? vOut : "[0:v]";
+    filterComplex += `${inNode}crop=${cropW}:${cropH}:${cropX}:${cropY}[vout];`;
+    vOut = "[vout]";
+  }
+  
+  if (filterComplex) {
+    filterComplex = filterComplex.slice(0, -1);
+    args.push("-filter_complex", filterComplex, "-map", vOut);
+    if (!mute) {
+      args.push("-map", "0:a?");
+    }
   }
   
   if (mute) {

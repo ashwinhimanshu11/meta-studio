@@ -220,6 +220,18 @@
         <button id="btn-crop-mode" class="action-btn">
           <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
         </button>
+        <button id="btn-blur-mode" class="action-btn">
+          <span class="material-symbols-rounded" id="blur-icon" style="font-size: 18px;">blur_on</span> <span id="blur-text">Blur</span>
+        </button>
+        <div class="dropdown-wrapper" id="blur-dropdown-wrapper" style="display: none;">
+          <button id="btn-apply-blur" class="action-btn primary">
+            <span class="material-symbols-rounded" style="font-size: 18px;">check</span> Apply Blur
+          </button>
+          <div id="apply-blur-dropdown" class="dropdown-menu">
+            <button id="btn-blur-entire" class="dropdown-item">Apply to entire video</button>
+            <button id="btn-blur-timeframe" class="dropdown-item">Apply on specific timeframe</button>
+          </div>
+        </div>
         <button id="btn-mute-mode" class="action-btn" title="Mute Video">
           <span class="material-symbols-rounded" id="mute-icon" style="font-size: 18px;">volume_up</span> <span id="mute-text">Mute</span>
         </button>
@@ -247,14 +259,37 @@
     
     <div id="status-toast">Video saved successfully!</div>
 
+    <!-- Blur Timeframe Modal -->
+    <div id="blur-time-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center;">
+      <div style="background: var(--bg-panel); padding: 20px; border-radius: 8px; width: 300px; border: 1px solid var(--border-color); color: var(--text-main);">
+        <h3 style="margin-top: 0;">Blur Timeframe</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: var(--text-muted);">Start (s)</label>
+            <input type="number" id="blur-start" style="width: 100%; box-sizing: border-box; padding: 6px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;" step="0.1">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: var(--text-muted);">End (s)</label>
+            <input type="number" id="blur-end" style="width: 100%; box-sizing: border-box; padding: 6px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;" step="0.1">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button id="btn-cancel-blur-time" class="action-btn">Cancel</button>
+          <button id="btn-confirm-blur-time" class="action-btn primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <script>
       let currentFilePath = null;
       let isEdited = false;
       let isCroppingMode = false;
+      let isBlurringMode = false;
       let isMuted = false;
       let cropper = null;
       let cropData = null; // { x, y, width, height }
+      let blurData = null; // { x, y, w, h, start, end }
       
       const video = document.getElementById("editor-video");
       const trimStart = document.getElementById("trim-start");
@@ -279,12 +314,14 @@
         document.getElementById("btn-cancel").disabled = true;
         document.getElementById("save-dropdown").classList.remove("show");
         cropData = null;
+        blurData = null;
         isMuted = false;
         updateMuteUI();
         trimStart.value = "";
         trimEnd.value = "";
         video.style.objectViewBox = "none";
         exitCropMode();
+        exitBlurMode();
       }
       
       document.getElementById("btn-set-start").addEventListener("click", () => {
@@ -399,6 +436,105 @@
         }
       });
       
+      function exitBlurMode() {
+        isBlurringMode = false;
+        document.getElementById("blur-dropdown-wrapper").style.display = "none";
+        document.getElementById("btn-blur-mode").style.display = "flex";
+        document.getElementById("crop-overlay-container").style.display = "none";
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        video.style.display = "block";
+      }
+
+      document.getElementById("btn-blur-mode").addEventListener("click", () => {
+        if (!video.videoWidth) {
+          alert("Video is not fully loaded yet. Please play the video first.");
+          return;
+        }
+        exitCropMode(); // Exit crop mode if active
+        isBlurringMode = true;
+        document.getElementById("btn-blur-mode").style.display = "none";
+        document.getElementById("blur-dropdown-wrapper").style.display = "inline-flex";
+        
+        video.pause();
+        try {
+          const tempBox = video.style.objectViewBox;
+          video.style.objectViewBox = "none";
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          video.style.objectViewBox = tempBox;
+          
+          const cropImg = document.getElementById("crop-image");
+          cropImg.onload = () => {
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(cropImg, {
+              viewMode: 1,
+              dragMode: 'crop',
+              autoCrop: false,
+              restore: false,
+              zoomable: false,
+              guides: true
+            });
+            if (blurData) {
+              cropper.setData({ x: blurData.x, y: blurData.y, width: blurData.w, height: blurData.h });
+            }
+          };
+          cropImg.src = canvas.toDataURL("image/jpeg");
+          video.style.display = "none";
+          document.getElementById("crop-overlay-container").style.display = "flex";
+        } catch (err) {
+          alert("Failed to grab video frame for blurring: " + err.message);
+          exitBlurMode();
+        }
+      });
+
+      document.getElementById("btn-apply-blur").addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.getElementById("apply-blur-dropdown").classList.toggle("show");
+      });
+
+      function applyBlurSettings(start, end) {
+        if (cropper) {
+          const data = cropper.getData();
+          if (data.width > 0 && data.height > 0) {
+            blurData = { x: Math.round(data.x), y: Math.round(data.y), w: Math.round(data.width), h: Math.round(data.height), start, end };
+            enableSave();
+          }
+        }
+        exitBlurMode();
+      }
+
+      document.getElementById("btn-blur-entire").addEventListener("click", () => {
+        applyBlurSettings(null, null);
+      });
+
+      document.getElementById("btn-blur-timeframe").addEventListener("click", () => {
+        document.getElementById("apply-blur-dropdown").classList.remove("show");
+        document.getElementById("blur-start").value = trimStart.value || "0";
+        document.getElementById("blur-end").value = trimEnd.value || video.duration.toFixed(2);
+        document.getElementById("blur-time-modal").style.display = "flex";
+      });
+
+      document.getElementById("btn-cancel-blur-time").addEventListener("click", () => {
+        document.getElementById("blur-time-modal").style.display = "none";
+      });
+
+      document.getElementById("btn-confirm-blur-time").addEventListener("click", () => {
+        const st = parseFloat(document.getElementById("blur-start").value);
+        const en = parseFloat(document.getElementById("blur-end").value);
+        if (isNaN(st) || isNaN(en) || st >= en) {
+          alert("Invalid timeframe.");
+          return;
+        }
+        document.getElementById("blur-time-modal").style.display = "none";
+        applyBlurSettings(st, en);
+      });
+      
       document.getElementById("btn-save").addEventListener("click", (e) => {
         if (!isEdited) return;
         e.stopPropagation();
@@ -422,7 +558,8 @@
           cropY: cropData ? cropData.y : null,
           cropW: cropData ? cropData.w : null,
           cropH: cropData ? cropData.h : null,
-          mute: isMuted
+          mute: isMuted,
+          blurData: blurData
         };
         
         const toast = document.getElementById("status-toast");
