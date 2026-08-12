@@ -14,11 +14,12 @@ export function initVideoEditor() {
 
   document.getElementById("video-edit-btn").addEventListener("click", () => {
     if (currentSelectedVideoPath) {
-      window.electronAPI.openVideoEditorWindow({
-        filePath: currentSelectedVideoPath,
-        extension: currentSelectedVideoExtension,
-        theme: document.documentElement.getAttribute("data-theme") || "light"
-      });
+      
+      document.getElementById('video-edit-btn').style.display = 'none';
+      document.getElementById('video-right-resizer').style.display = 'block';
+      document.getElementById('video-options-panel').style.display = 'flex';
+      window.startVideoEditor({ filePath: currentSelectedVideoPath });
+
     }
   });
 
@@ -255,3 +256,360 @@ async function renderVideoEditorDirectory(path, containerElement) {
     containerElement.appendChild(node);
   });
 }
+
+let isEdited = false;
+
+// --- Injected Video Editor Logic ---
+
+      
+      let isCroppingMode = false;
+      let isBlurringMode = false;
+      let isMuted = false;
+      let cropper = null;
+      let cropData = null; // { x, y, width, height }
+      let blurData = null; // { x, y, w, h, start, end }
+      
+      const video = document.getElementById("editor-video");
+      const trimStart = document.getElementById("trim-start");
+      const trimEnd = document.getElementById("trim-end");
+      
+      function showToast(message) {
+        const toast = document.getElementById("status-toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
+      
+      function enableSave() {
+        isEdited = true;
+        document.getElementById("btn-save-vid").disabled = false;
+        document.getElementById("btn-cancel-vid").disabled = false;
+      }
+      
+      function disableSave() {
+        isEdited = false;
+        document.getElementById("btn-save-vid").disabled = true;
+        document.getElementById("btn-cancel-vid").disabled = true;
+        document.getElementById("save-dropdown-vid").classList.remove("show");
+        cropData = null;
+        blurData = null;
+        isMuted = false;
+        updateMuteUI();
+        trimStart.value = "";
+        trimEnd.value = "";
+        video.style.objectViewBox = "none";
+        exitCropMode();
+        exitBlurMode();
+      }
+      
+      document.getElementById("btn-set-start").addEventListener("click", () => {
+        trimStart.value = video.currentTime.toFixed(2);
+        enableSave();
+      });
+      document.getElementById("btn-set-end").addEventListener("click", () => {
+        trimEnd.value = video.currentTime.toFixed(2);
+        enableSave();
+      });
+      
+      trimStart.addEventListener("input", enableSave);
+      trimEnd.addEventListener("input", enableSave);
+      
+      document.getElementById("btn-cancel-vid").addEventListener("click", disableSave);
+      
+      function updateMuteUI() {
+        document.getElementById("mute-icon").textContent = isMuted ? "volume_off" : "volume_up";
+        document.getElementById("mute-text").textContent = isMuted ? "Unmute" : "Mute";
+        if (isMuted) {
+          document.getElementById("btn-mute-mode").classList.add("primary");
+        } else {
+          document.getElementById("btn-mute-mode").classList.remove("primary");
+        }
+      }
+
+      document.getElementById("btn-mute-mode").addEventListener("click", () => {
+        isMuted = !isMuted;
+        updateMuteUI();
+        enableSave();
+      });
+
+      function exitCropMode() {
+        isCroppingMode = false;
+        document.getElementById("crop-text").textContent = "Crop";
+        document.getElementById("crop-icon").textContent = "crop";
+        document.getElementById("btn-crop-mode").classList.remove("primary");
+        document.getElementById("crop-overlay-container").style.display = "none";
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        video.style.display = "block";
+      }
+      
+      document.getElementById("btn-crop-mode").addEventListener("click", () => {
+        if (isCroppingMode) {
+          // Apply Crop
+          if (cropper) {
+            const data = cropper.getData();
+            if (data.width > 0 && data.height > 0) {
+              cropData = { x: Math.round(data.x), y: Math.round(data.y), w: Math.round(data.width), h: Math.round(data.height) };
+              enableSave();
+              
+              const top = cropData.y;
+              const left = cropData.x;
+              const right = video.videoWidth - (cropData.x + cropData.w);
+              const bottom = video.videoHeight - (cropData.y + cropData.h);
+              video.style.objectViewBox = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+            }
+          }
+          exitCropMode();
+        } else {
+          // Enter Crop
+          if (!video.videoWidth) {
+            alert("Video is not fully loaded yet. Please play the video first.");
+            return;
+          }
+          isCroppingMode = true;
+          document.getElementById("crop-text").textContent = "Apply Crop";
+          document.getElementById("crop-icon").textContent = "check";
+          document.getElementById("btn-crop-mode").classList.add("primary");
+          
+          video.pause();
+          
+          try {
+            const tempBox = video.style.objectViewBox;
+            video.style.objectViewBox = "none";
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            video.style.objectViewBox = tempBox;
+            
+            const cropImg = document.getElementById("crop-image");
+            
+            // Assign onload before setting src for dataURIs
+            cropImg.onload = () => {
+              if (cropper) cropper.destroy();
+              cropper = new Cropper(cropImg, {
+                viewMode: 1,
+                dragMode: 'crop',
+                autoCrop: false,
+                restore: false,
+                zoomable: false,
+                guides: true
+              });
+              if (cropData) {
+                cropper.setData({ x: cropData.x, y: cropData.y, width: cropData.w, height: cropData.h });
+              }
+            };
+            
+            cropImg.src = canvas.toDataURL("image/jpeg");
+            
+            video.style.display = "none";
+            document.getElementById("crop-overlay-container").style.display = "flex";
+          } catch (err) {
+            alert("Failed to grab video frame for cropping: " + err.message);
+            exitCropMode();
+          }
+        }
+      });
+      
+      function exitBlurMode() {
+        isBlurringMode = false;
+        document.getElementById("blur-dropdown-wrapper").style.display = "none";
+        document.getElementById("btn-blur-mode").style.display = "flex";
+        document.getElementById("crop-overlay-container").style.display = "none";
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        video.style.display = "block";
+      }
+
+      document.getElementById("btn-blur-mode").addEventListener("click", () => {
+        if (!video.videoWidth) {
+          alert("Video is not fully loaded yet. Please play the video first.");
+          return;
+        }
+        exitCropMode(); // Exit crop mode if active
+        isBlurringMode = true;
+        document.getElementById("btn-blur-mode").style.display = "none";
+        document.getElementById("blur-dropdown-wrapper").style.display = "inline-flex";
+        
+        video.pause();
+        try {
+          const tempBox = video.style.objectViewBox;
+          video.style.objectViewBox = "none";
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          video.style.objectViewBox = tempBox;
+          
+          const cropImg = document.getElementById("crop-image");
+          cropImg.onload = () => {
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(cropImg, {
+              viewMode: 1,
+              dragMode: 'crop',
+              autoCrop: false,
+              restore: false,
+              zoomable: false,
+              guides: true
+            });
+            if (blurData) {
+              cropper.setData({ x: blurData.x, y: blurData.y, width: blurData.w, height: blurData.h });
+            }
+          };
+          cropImg.src = canvas.toDataURL("image/jpeg");
+          video.style.display = "none";
+          document.getElementById("crop-overlay-container").style.display = "flex";
+        } catch (err) {
+          alert("Failed to grab video frame for blurring: " + err.message);
+          exitBlurMode();
+        }
+      });
+
+      document.getElementById("btn-apply-blur").addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.getElementById("apply-blur-dropdown").classList.toggle("show");
+      });
+
+      function applyBlurSettings(start, end) {
+        if (cropper) {
+          const data = cropper.getData();
+          if (data.width > 0 && data.height > 0) {
+            blurData = { x: Math.round(data.x), y: Math.round(data.y), w: Math.round(data.width), h: Math.round(data.height), start, end };
+            enableSave();
+          }
+        }
+        exitBlurMode();
+      }
+
+      document.getElementById("btn-blur-entire").addEventListener("click", () => {
+        applyBlurSettings(null, null);
+      });
+
+      document.getElementById("btn-blur-timeframe").addEventListener("click", () => {
+        document.getElementById("apply-blur-dropdown").classList.remove("show");
+        document.getElementById("blur-start").value = trimStart.value || "0";
+        document.getElementById("blur-end").value = trimEnd.value || video.duration.toFixed(2);
+        document.getElementById("blur-time-modal").style.display = "flex";
+      });
+
+      document.getElementById("btn-cancel-blur-time").addEventListener("click", () => {
+        document.getElementById("blur-time-modal").style.display = "none";
+      });
+
+      document.getElementById("btn-confirm-blur-time").addEventListener("click", () => {
+        const st = parseFloat(document.getElementById("blur-start").value);
+        const en = parseFloat(document.getElementById("blur-end").value);
+        if (isNaN(st) || isNaN(en) || st >= en) {
+          alert("Invalid timeframe.");
+          return;
+        }
+        document.getElementById("blur-time-modal").style.display = "none";
+        applyBlurSettings(st, en);
+      });
+      
+      document.getElementById("btn-save-vid").addEventListener("click", (e) => {
+        if (!isEdited) return;
+        e.stopPropagation();
+        document.getElementById("save-dropdown-vid").classList.toggle("show");
+      });
+      document.addEventListener("click", () => {
+        document.getElementById("save-dropdown-vid").classList.remove("show");
+      });
+      
+      async function triggerSave(replace) {
+        document.getElementById("save-dropdown-vid").classList.remove("show");
+        const ts = parseFloat(trimStart.value);
+        const te = parseFloat(trimEnd.value);
+        
+        const payload = {
+          filePath: currentFilePath,
+          replace,
+          trimStart: isNaN(ts) ? null : ts,
+          trimEnd: isNaN(te) ? null : te,
+          cropX: cropData ? cropData.x : null,
+          cropY: cropData ? cropData.y : null,
+          cropW: cropData ? cropData.w : null,
+          cropH: cropData ? cropData.h : null,
+          mute: isMuted,
+          blurData: blurData
+        };
+        
+        const toast = document.getElementById("status-toast");
+        toast.textContent = "Saving video...";
+        toast.classList.add("show");
+        
+        const res = await window.electronAPI.saveVideo(payload);
+        
+        if (res.error) {
+          toast.textContent = "Error: " + res.error;
+          setTimeout(() => toast.classList.remove("show"), 3000);
+        } else {
+          currentFilePath = res.newPath;
+          disableSave();
+          showToast("Video saved successfully!");
+        }
+      }
+      
+      document.getElementById("btn-save-replace-vid").addEventListener("click", () => triggerSave(true));
+      document.getElementById("btn-save-new-vid").addEventListener("click", () => triggerSave(false));
+      
+      window.startVideoEditor = async function(payload) {
+        if (payload.theme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+        
+        currentFilePath = payload.filePath;
+        document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
+        
+        const overlay = document.createElement("div");
+        overlay.id = "proxy-overlay";
+        overlay.style = "display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-base); z-index: 100; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);";
+        overlay.innerHTML = `
+          <div style="font-size: 16px; margin-bottom: 12px; font-weight: 500;">Generating Playable Preview...</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Format not natively supported. Transcoding...</div>
+          <div style="width: 300px; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden;">
+            <div id="proxy-progress-bar" style="width: 0%; height: 100%; background: var(--text-main); transition: width 0.2s;"></div>
+          </div>
+          <div id="proxy-text" style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">0%</div>
+        `;
+        document.getElementById("editor-container-main").appendChild(overlay);
+        overlay.style.display = "none";
+        
+        let proxyStarted = false;
+        
+        window.electronAPI.onProxyProgress((percent) => {
+          if (!proxyStarted) {
+            proxyStarted = true;
+            overlay.style.display = "flex";
+          }
+          document.getElementById("proxy-progress-bar").style.width = percent + "%";
+          document.getElementById("proxy-text").textContent = percent + "%";
+        });
+        
+        const res = await window.electronAPI.prepareVideoProxy(payload.filePath);
+        if (overlay) overlay.remove();
+        
+        if (res.error) {
+          alert(res.error);
+        } else {
+          video.src = 'file://' + res.proxyPath;
+        }
+      });
+    
+
+document.getElementById('video-back-normal-btn').addEventListener('click', () => {
+    document.getElementById('video-right-resizer').style.display = 'none';
+    document.getElementById('video-options-panel').style.display = 'none';
+    document.getElementById('video-edit-btn').style.display = 'flex';
+    
+    // reset UI
+    const btnCancel = document.getElementById("btn-cancel-vid");
+    if(btnCancel) btnCancel.click();
+});
+

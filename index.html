@@ -62,6 +62,7 @@
         background-color: var(--bg-hover);
       }
     </style>
+      <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
   </head>
   <body>
     <!-- Elegant Minimal Splash Screen -->
@@ -827,12 +828,92 @@
         </div>
         <div id="editor-preview-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
           <img id="editor-preview-img" style="max-width: 100%; max-height: 80%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+          <div id="redact-review-container" style="display: none; position: relative; max-width: 100%; max-height: 100%;">
+          <img id="redact-review-img" src="" style="display: block; max-width: 100%; max-height: 100%;" />
+          <div id="redact-boxes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+        </div>
           <button id="editor-edit-btn" class="icon-btn active" style="margin-top: 20px; padding: 12px 24px; font-weight: 400; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--gts-gradient); color: #fff; border: none; cursor: pointer; border-radius: 6px;">
             <span class="material-symbols-rounded">edit</span>
           </button>
         </div>
       </div>
+      <div class="resizer" id="editor-right-resizer" style="display: none;"></div>
+      <div class="sidebar-right" id="editor-options-panel" style="display: none; flex-direction: column; overflow-y: auto; gap: 10px; padding: 20px;">
+        <button id="editor-back-normal-btn" class="action-btn" style="align-self: flex-start; margin-bottom: 10px;"><span class="material-symbols-rounded">arrow_back</span> Back to normal</button>
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: var(--text-main);">Edit Options</h3>
+        <div class="slider-wrapper" style="display: flex; align-items: center; gap: 8px; margin-right: 12px;" title="Straighten">
+          <span class="material-symbols-rounded" style="font-size: 18px; color: var(--text-muted);">straighten</span>
+          <input type="range" id="straighten-slider" min="-45" max="45" value="0" style="width: 100px; accent-color: var(--text-main);">
+        </div>
+        <button id="btn-rotate-left" class="action-btn" title="Rotate Left 90°">
+          <span class="material-symbols-rounded" style="font-size: 18px;">rotate_left</span>
+        </button>
+        <button id="btn-rotate-right" class="action-btn" title="Rotate Right 90°">
+          <span class="material-symbols-rounded" style="font-size: 18px;">rotate_right</span>
+        </button>
+        <button id="btn-crop" class="action-btn">
+          <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
+        </button>
+        
+        <!-- Custom Dropdowns -->
+        <input type="hidden" id="redact-target" value="faces" />
+        <input type="hidden" id="redact-mode" value="blur" />
+        
+        <div class="custom-dropdown" id="dd-target">
+          <button class="action-btn custom-dropdown-btn" id="btn-dd-target" title="Select Target">
+            <span class="material-symbols-rounded" id="target-icon" style="font-size:18px">face</span>
+            <span id="target-label">Faces</span>
+            <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
+          </button>
+          <div class="custom-dropdown-content" id="content-dd-target">
+            <div class="custom-dropdown-item" data-value="faces"><span class="material-symbols-rounded" style="font-size:18px">face</span> Faces</div>
+            <div class="custom-dropdown-item" data-value="plates"><span class="material-symbols-rounded" style="font-size:18px">directions_car</span> Plates</div>
+          </div>
+        </div>
+
+        <div class="custom-dropdown" id="dd-mode">
+          <button class="action-btn custom-dropdown-btn" id="btn-dd-mode" title="Select Mode">
+            <span class="material-symbols-rounded" id="mode-icon" style="font-size:18px">blur_on</span>
+            <span id="mode-label">Blur</span>
+            <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
+          </button>
+          <div class="custom-dropdown-content" id="content-dd-mode">
+            <div class="custom-dropdown-item" data-value="blur"><span class="material-symbols-rounded" style="font-size:18px">blur_on</span> Blur</div>
+            <div class="custom-dropdown-item" data-value="black"><span class="material-symbols-rounded" style="font-size:18px">check_box_outline_blank</span> Black Box</div>
+            <div class="custom-dropdown-item" data-value="white"><span class="material-symbols-rounded" style="font-size:18px">check_box_outline_blank</span> White Box</div>
+          </div>
+        </div>
+
+        <button id="btn-redact-apply" class="action-btn" style="display: none; background-color: var(--gts-blue); border-color: var(--gts-blue);">
+          <span class="material-symbols-rounded" style="font-size: 18px;">check</span> <span>Apply</span>
+        </button>
+        <button id="btn-redact-cancel" class="action-btn" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">close</span> <span>Cancel</span>
+        </button>
+        <button id="btn-redact" class="action-btn" title="YOLO Auto-Redact">
+          <span class="material-symbols-rounded" id="redact-icon" style="font-size: 18px;">blur_on</span> <span id="redact-text">Auto-Redact</span>
+        </button>
+        <button id="btn-a4-portrait" class="action-btn" title="A4 Portrait" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">crop_portrait</span> A4
+        </button>
+        <button id="btn-a4-landscape" class="action-btn" title="A4 Landscape" style="display: none;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">crop_landscape</span> A4
+        </button>
+        <button id="btn-cancel" style="display: none;" class="action-btn" disabled title="Cancel all changes">
+          <span class="material-symbols-rounded" style="font-size: 18px;">undo</span> Cancel
+        </button>
+        <div class="dropdown-wrapper">
+          <button id="btn-save" class="action-btn primary" disabled>
+            <span class="material-symbols-rounded" style="font-size: 18px;">save</span> Save
+          </button>
+          <div id="save-dropdown" class="dropdown-menu">
+            <button id="btn-save-replace" class="dropdown-item">Replace Original</button>
+            <button id="btn-save-new" class="dropdown-item">Save as New File</button>
+          </div>
+        </div>
+      </div>
     </div>
+
 
     <div
       id="video-workspace"
@@ -905,12 +986,73 @@
         </div>
         <div id="video-preview-container" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
           <video id="video-preview-vid" style="max-width: 100%; max-height: 80%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" controls></video>
+          <div id="crop-overlay-container" style="display: none; position: absolute; top: 20px; left: 20px; right: 20px; bottom: 20px; align-items: center; justify-content: center;"><img id="crop-image" style="max-width: 100%; max-height: 100%; display: block;" /></div>
           <button id="video-edit-btn" class="icon-btn active" style="margin-top: 20px; padding: 12px 24px; font-weight: 400; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--gts-gradient); color: #fff; border: none; cursor: pointer; border-radius: 6px;">
             <span class="material-symbols-rounded">movie_edit</span> Edit Video
           </button>
         </div>
       </div>
+      <div class="resizer" id="video-right-resizer" style="display: none;"></div>
+      <div class="sidebar-right" id="video-options-panel" style="display: none; flex-direction: column; overflow-y: auto; gap: 10px; padding: 20px;">
+        <button id="video-back-normal-btn" class="action-btn" style="align-self: flex-start; margin-bottom: 10px;"><span class="material-symbols-rounded">arrow_back</span> Back to normal</button>
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; color: var(--text-main);">Video Edit Options</h3>
+        <!-- Trim controls -->
+        <div class="trim-inputs">
+          <span class="material-symbols-rounded" style="font-size: 16px; color: var(--text-muted);">content_cut</span>
+          <input type="number" id="trim-start" placeholder="Start(s)" step="0.1">
+          <button id="btn-set-start" class="action-btn" style="padding: 2px 4px; font-size: 10px; min-width: 0; border: none;" title="Set to current time">SET</button>
+          <span style="color: var(--text-muted);"> - </span>
+          <input type="number" id="trim-end" placeholder="End(s)" step="0.1">
+          <button id="btn-set-end" class="action-btn" style="padding: 2px 4px; font-size: 10px; min-width: 0; border: none;" title="Set to current time">SET</button>
+        </div>
+        
+        <button id="btn-crop-mode" class="action-btn">
+          <span class="material-symbols-rounded" id="crop-icon" style="font-size: 18px;">crop</span> <span id="crop-text">Crop</span>
+        </button>
+        <button id="btn-blur-mode" class="action-btn">
+          <span class="material-symbols-rounded" id="blur-icon" style="font-size: 18px;">blur_on</span> <span id="blur-text">Blur</span>
+        </button>
+        <div class="dropdown-wrapper" id="blur-dropdown-wrapper" style="display: none;">
+          <button id="btn-apply-blur" class="action-btn primary">
+            <span class="material-symbols-rounded" style="font-size: 18px;">check</span> Apply Blur
+          </button>
+          <div id="apply-blur-dropdown" class="dropdown-menu">
+            <button id="btn-blur-entire" class="dropdown-item">Apply to entire video</button>
+            <button id="btn-blur-timeframe" class="dropdown-item">Apply on specific timeframe</button>
+          </div>
+        </div>
+        <button id="btn-mute-mode" class="action-btn" title="Mute Video">
+          <span class="material-symbols-rounded" id="mute-icon" style="font-size: 18px;">volume_up</span> <span id="mute-text">Mute</span>
+        </button>
+        <button id="btn-cancel-vid" style="display: none;" class="action-btn" disabled title="Cancel all changes">
+          <span class="material-symbols-rounded" style="font-size: 18px;">undo</span> Cancel
+        </button>
+        <div class="dropdown-wrapper">
+          <button id="btn-save-vid" class="action-btn primary" disabled>
+            <span class="material-symbols-rounded" style="font-size: 18px;">save</span> Save
+          </button>
+          <div id="save-dropdown-vid" class="dropdown-menu">
+            <button id="btn-save-replace-vid" class="dropdown-item">Replace Original</button>
+            <button id="btn-save-new-vid" class="dropdown-item">Save as New File</button>
+          </div>
+        </div>
+      </div>
     </div>
+
+<!-- Blur Timeframe Modal -->
+    <div id="blur-time-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center;">
+      <div style="background: var(--bg-panel); padding: 20px; border-radius: 8px; width: 300px; border: 1px solid var(--border-color); color: var(--text-main);">
+        <h3 style="margin-top: 0;">Blur Timeframe</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: var(--text-muted);">Start (s)</label>
+            <input type="number" id="blur-start" style="width: 100%; box-sizing: border-box; padding: 6px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;" step="0.1">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: var(--text-muted);">End (s)</label>
+            <input type="number" id="blur-end" style="width: 100%; box-sizing: border-box; padding: 6px; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;" step="0.1">
+          </div>
+        </div>
 
     <div id="hover-card" class="hover-card" style="display: none"></div>
 
@@ -1056,5 +1198,6 @@
         });
       })();
     </script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   </body>
 </html>

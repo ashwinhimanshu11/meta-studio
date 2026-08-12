@@ -14,11 +14,12 @@ export function initEditor() {
 
   document.getElementById("editor-edit-btn").addEventListener("click", () => {
     if (currentSelectedImagePath) {
-      window.electronAPI.openImageEditorWindow({
-        filePath: currentSelectedImagePath,
-        extension: currentSelectedImageExtension,
-        theme: document.documentElement.getAttribute("data-theme") || "light"
-      });
+      
+      document.getElementById('editor-edit-btn').style.display = 'none';
+      document.getElementById('editor-right-resizer').style.display = 'block';
+      document.getElementById('editor-options-panel').style.display = 'flex';
+      window.startImageEditor({ filePath: currentSelectedImagePath });
+
     }
   });
 }
@@ -188,3 +189,581 @@ function printImage(imagePath) {
     }
   }, 10000);
 }
+
+let isEdited = false;
+
+// --- Injected Image Editor Logic ---
+
+      let originalSrc = null;
+      let cropper = null;
+      
+      let isCroppingMode = false;
+      let a4Mode = null;
+      let baseRotation = 0;
+      let straightenAngle = 0;
+
+      function applyRotation() {
+        if (!cropper) return;
+        const totalAngle = baseRotation + straightenAngle;
+        cropper.rotateTo(totalAngle);
+        
+        // Calculate the maximum inscribed rectangle to auto-crop transparent corners
+        const imageData = cropper.getImageData();
+        const isRotated90 = Math.abs(baseRotation) % 180 === 90;
+        const w = isRotated90 ? imageData.naturalHeight : imageData.naturalWidth;
+        const h = isRotated90 ? imageData.naturalWidth : imageData.naturalHeight;
+        
+        const rad = Math.abs(straightenAngle * Math.PI / 180);
+        const sin = Math.sin(rad);
+        const cos = Math.cos(rad);
+        
+        let currentAspectRatio = w / h;
+        if (isCroppingMode && a4Mode === "portrait") {
+          currentAspectRatio = 0.7071;
+        } else if (isCroppingMode && a4Mode === "landscape") {
+          currentAspectRatio = 1.4142;
+        }
+        
+        // Calculate max inscribed crop dimensions
+        const cropWLimit1 = w / (cos + sin / currentAspectRatio);
+        const cropWLimit2 = h / (sin + cos / currentAspectRatio);
+        const maxCropW = Math.min(cropWLimit1, cropWLimit2);
+        const maxCropH = maxCropW / currentAspectRatio;
+        
+        if (!cropper.cropped) {
+          cropper.crop();
+        }
+        
+        cropper.setAspectRatio(currentAspectRatio);
+        
+        const canvasData = cropper.getCanvasData();
+        const boundingW = w * cos + h * sin;
+        const boundingH = w * sin + h * cos;
+        
+        // The scale of the canvas on screen vs natural
+        const canvasScale = canvasData.width / boundingW;
+        
+        const cropWOnScreen = maxCropW * canvasScale;
+        const cropHOnScreen = maxCropH * canvasScale;
+        
+        cropper.setCropBoxData({
+          left: canvasData.left + (canvasData.width - cropWOnScreen) / 2,
+          top: canvasData.top + (canvasData.height - cropHOnScreen) / 2,
+          width: cropWOnScreen,
+          height: cropHOnScreen
+        });
+        
+        enableSave();
+      }
+
+      function showToast(message) {
+        const toast = document.getElementById("status-toast");
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3000);
+      }
+
+      function enableSave() {
+        isEdited = true;
+        document.getElementById("btn-save").disabled = false;
+        document.getElementById("btn-cancel").disabled = false;
+      }
+      
+      function disableSave() {
+        isEdited = false;
+        document.getElementById("btn-save").disabled = true;
+        document.getElementById("btn-cancel").disabled = true;
+        document.getElementById("save-dropdown").classList.remove("show");
+      }
+      
+      document.getElementById("btn-save").addEventListener("click", (e) => {
+        if (!isEdited) return;
+        e.stopPropagation();
+        document.getElementById("save-dropdown").classList.toggle("show");
+      });
+      
+      document.addEventListener("click", () => {
+        document.getElementById("save-dropdown").classList.remove("show");
+      });
+
+      window.startImageEditor = async function(payload) {
+        if (payload.theme === "dark") {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+        
+        currentFilePath = payload.filePath;
+        document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
+        
+        const details = await window.electronAPI.getFileDetails(payload.filePath);
+        const image = document.getElementById("editor-image");
+        if (details.thumbnail) {
+          image.src = details.thumbnail;
+        } else {
+          image.src = 'file://' + payload.filePath;
+        }
+        originalSrc = image.src;
+        
+        image.onload = () => {
+          if (cropper) cropper.destroy();
+          cropper = new Cropper(image, {
+            viewMode: 2,
+            dragMode: 'move', // Allows panning with mouse drag
+            autoCrop: false, // Don't show crop box by default
+            guides: false,
+            center: false,
+            highlight: false,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+            toggleDragModeOnDblclick: false,
+            wheelZoomRatio: 0.1, // Zoom via mouse wheel or 2-finger scroll
+            ready: function () {
+              const splash = document.getElementById("splash-screen");
+              if (splash) {
+                splash.style.opacity = '0';
+                setTimeout(() => splash.remove(), 400);
+              }
+            }
+          });
+        };
+      });
+
+      document.getElementById("btn-crop").addEventListener("click", () => {
+        if (!cropper) return;
+        
+        if (!isCroppingMode) {
+          // Enter crop mode
+          isCroppingMode = true;
+          document.getElementById("crop-text").textContent = "Apply Crop";
+          document.getElementById("crop-icon").textContent = "check";
+          document.getElementById("btn-a4-portrait").style.display = "flex";
+          document.getElementById("btn-a4-landscape").style.display = "flex";
+          
+          // Re-init cropper to properly render grid lines and corners
+          cropper.destroy();
+          const image = document.getElementById("editor-image");
+          cropper = new Cropper(image, {
+            viewMode: 2,
+            dragMode: 'crop', 
+            autoCropArea: 1,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+            wheelZoomRatio: 0.1,
+            ready() {
+              if (baseRotation !== 0 || straightenAngle !== 0) {
+                applyRotation();
+              }
+            }
+          });
+        } else {
+          // Apply the crop
+          const canvas = cropper.getCroppedCanvas();
+          if (!canvas) return;
+          
+          cropper.destroy();
+          cropper = null;
+          
+          const image = document.getElementById("editor-image");
+          image.src = canvas.toDataURL("image/png");
+          
+          isEdited = true;
+          isCroppingMode = false;
+          
+          document.getElementById("crop-text").textContent = "Crop";
+          document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
+          
+          // Re-initialize cropper for zooming/panning on the cropped image
+          image.onload = () => {
+            if (!cropper) {
+              cropper = new Cropper(image, {
+                viewMode: 2,
+                dragMode: 'move',
+                autoCrop: false,
+                guides: false,
+                center: false,
+                cropBoxMovable: false,
+                cropBoxResizable: false,
+                toggleDragModeOnDblclick: false,
+                wheelZoomRatio: 0.1,
+              });
+            }
+          };
+
+          // Enable save options
+          enableSave();
+        }
+      });
+
+      document.getElementById("straighten-slider").addEventListener("input", (e) => {
+        straightenAngle = parseFloat(e.target.value);
+        applyRotation();
+      });
+
+      document.getElementById("btn-rotate-left").addEventListener("click", () => {
+        baseRotation -= 90;
+        applyRotation();
+      });
+
+      document.getElementById("btn-rotate-right").addEventListener("click", () => {
+        baseRotation += 90;
+        applyRotation();
+      });
+
+      function setA4Mode(mode) {
+        if (a4Mode === mode) {
+          a4Mode = null; // toggle off
+        } else {
+          a4Mode = mode;
+        }
+        
+        const btnP = document.getElementById("btn-a4-portrait");
+        const btnL = document.getElementById("btn-a4-landscape");
+        
+        btnP.style.background = a4Mode === "portrait" ? "var(--bg-hover)" : "";
+        btnP.style.borderColor = a4Mode === "portrait" ? "var(--gts-blue)" : "";
+        
+        btnL.style.background = a4Mode === "landscape" ? "var(--bg-hover)" : "";
+        btnL.style.borderColor = a4Mode === "landscape" ? "var(--gts-blue)" : "";
+        
+        applyRotation();
+        
+        if (!a4Mode) {
+          cropper.setAspectRatio(NaN);
+        }
+      }
+
+      document.getElementById("btn-a4-portrait").addEventListener("click", () => {
+        if (!cropper || !isCroppingMode) return;
+        setA4Mode("portrait");
+      });
+
+      document.getElementById("btn-a4-landscape").addEventListener("click", () => {
+        if (!cropper || !isCroppingMode) return;
+        setA4Mode("landscape");
+      });
+
+      document.getElementById("btn-redact").addEventListener("click", async () => {
+        const btn = document.getElementById("btn-redact");
+        if (!cropper || btn.disabled) return;
+        
+        btn.disabled = true;
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "sync";
+        icon.classList.add("spinning");
+        text.textContent = "YOLO Scanning...";
+        
+        try {
+          const canvas = cropper.getCroppedCanvas();
+          if (!canvas) throw new Error("Canvas error");
+          
+          const mode = document.getElementById("redact-mode").value;
+          const target = document.getElementById("redact-target").value;
+          const dataUrl = canvas.toDataURL("image/png");
+          const result = await window.electronAPI.runYoloRedact(dataUrl, mode, target);
+          
+          if (result.success && result.boxes && result.boxes.length > 0) {
+            window.pendingRedactCanvas = canvas;
+            window.pendingRedactBoxes = result.boxes;
+            
+            document.querySelector(".cropper-container").style.display = "none";
+            const reviewContainer = document.getElementById("redact-review-container");
+            const reviewImg = document.getElementById("redact-review-img");
+            const boxesContainer = document.getElementById("redact-boxes-container");
+            
+            reviewImg.src = dataUrl;
+            reviewContainer.style.display = "inline-block";
+            
+            reviewImg.onload = () => {
+              boxesContainer.innerHTML = "";
+              const scaleX = reviewImg.clientWidth / canvas.width;
+              const scaleY = reviewImg.clientHeight / canvas.height;
+              
+              result.boxes.forEach((box, i) => {
+                const boxDiv = document.createElement("div");
+                boxDiv.style.position = "absolute";
+                boxDiv.style.left = (box.x * scaleX) + "px";
+                boxDiv.style.top = (box.y * scaleY) + "px";
+                boxDiv.style.width = (box.w * scaleX) + "px";
+                boxDiv.style.height = (box.h * scaleY) + "px";
+                
+                if (mode === "white") boxDiv.style.background = "white";
+                else if (mode === "blur") boxDiv.style.backdropFilter = "blur(10px)";
+                else boxDiv.style.background = "black";
+                
+                boxDiv.style.border = "2px dashed red";
+                
+                let isDragging = false;
+                let startX, startY;
+                let initialLeft, initialTop;
+                
+                boxDiv.style.cursor = 'move';
+                
+                boxDiv.onmousedown = (e) => {
+                  if (e.target === closeBtn) return;
+                  isDragging = true;
+                  startX = e.clientX;
+                  startY = e.clientY;
+                  initialLeft = parseFloat(boxDiv.style.left);
+                  initialTop = parseFloat(boxDiv.style.top);
+                  e.preventDefault();
+                };
+                
+                document.addEventListener('mousemove', (e) => {
+                  if (!isDragging) return;
+                  const dx = e.clientX - startX;
+                  const dy = e.clientY - startY;
+                  let newLeft = initialLeft + dx;
+                  let newTop = initialTop + dy;
+                  
+                  // constrain to image bounds
+                  newLeft = Math.max(0, Math.min(newLeft, reviewImg.clientWidth - boxDiv.offsetWidth));
+                  newTop = Math.max(0, Math.min(newTop, reviewImg.clientHeight - boxDiv.offsetHeight));
+                  
+                  boxDiv.style.left = newLeft + 'px';
+                  boxDiv.style.top = newTop + 'px';
+                  
+                  // Update underlying box coordinates
+                  window.pendingRedactBoxes[i].x = newLeft / scaleX;
+                  window.pendingRedactBoxes[i].y = newTop / scaleY;
+                });
+                
+                document.addEventListener('mouseup', () => {
+                  isDragging = false;
+                });
+                
+                const closeBtn = document.createElement("button");
+                closeBtn.innerHTML = "×";
+                closeBtn.style.position = "absolute";
+                closeBtn.style.top = "-10px";
+                closeBtn.style.right = "-10px";
+                closeBtn.style.background = "red";
+                closeBtn.style.color = "white";
+                closeBtn.style.border = "none";
+                closeBtn.style.borderRadius = "50%";
+                closeBtn.style.width = "20px";
+                closeBtn.style.height = "20px";
+                closeBtn.style.cursor = "pointer";
+                closeBtn.style.display = "flex";
+                closeBtn.style.alignItems = "center";
+                closeBtn.style.justifyContent = "center";
+                closeBtn.style.fontWeight = "bold";
+                
+                closeBtn.onclick = () => {
+                  boxDiv.remove();
+                  window.pendingRedactBoxes[i] = null;
+                };
+                
+                boxDiv.appendChild(closeBtn);
+                boxesContainer.appendChild(boxDiv);
+              });
+            };
+            
+            document.getElementById("btn-redact").style.display = "none";
+            document.getElementById("btn-redact-apply").style.display = "flex";
+            document.getElementById("btn-redact-cancel").style.display = "flex";
+            setDropdownsDisabled(true);
+            
+            
+            showToast(`Found ${result.boxes.length} sensitive areas. Review and apply.`);
+          } else if (result.success) {
+            showToast("No sensitive areas found by YOLO.");
+          } else {
+            console.error(result.error);
+            showToast("YOLO Error: " + result.error);
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Error during YOLO redaction.");
+        } finally {
+          btn.disabled = false;
+          icon.textContent = "blur_on";
+          icon.classList.remove("spinning");
+          text.textContent = "Auto-Redact";
+        }
+      });
+
+      document.getElementById("btn-cancel").addEventListener("click", () => {
+        if (!isEdited) return;
+        
+        // Reset all states
+        baseRotation = 0;
+        straightenAngle = 0;
+        document.getElementById("straighten-slider").value = 0;
+        
+        if (a4Mode) {
+          setA4Mode(null);
+        }
+        
+        if (isCroppingMode) {
+          isCroppingMode = false;
+          document.getElementById("crop-text").textContent = "Crop";
+          document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
+        }
+        
+        disableSave();
+        
+        // Restore original image which triggers onload and resets cropper
+        const image = document.getElementById("editor-image");
+        image.src = originalSrc;
+      });
+
+      async function handleSave(replace) {
+        if (!isEdited) return;
+        
+        // Get the final canvas data
+        const canvas = cropper ? cropper.getCroppedCanvas() : null;
+        const dataUrl = canvas ? canvas.toDataURL("image/png") : document.getElementById("editor-image").src;
+        
+        const result = await window.electronAPI.saveImage({
+          dataUrl,
+          originalPath: currentFilePath,
+          replace
+        });
+        
+        if (result.success) {
+          showToast(`Saved to ${result.path.split(/[/\\]/).pop()}`);
+          if (!replace) {
+             // update current file path if saved as new
+             currentFilePath = result.path;
+             document.getElementById("filename-display").textContent = currentFilePath.split(/[/\\]/).pop();
+          }
+          
+          // Reset UI
+          disableSave();
+        } else {
+          showToast(`Error: ${result.error}`);
+        }
+      }
+
+      document.getElementById("btn-save-replace").addEventListener("click", () => handleSave(true));
+      document.getElementById("btn-save-new").addEventListener("click", () => handleSave(false));
+
+      document.getElementById("btn-redact-cancel").addEventListener("click", () => {
+        document.getElementById("redact-review-container").style.display = "none";
+        document.querySelector(".cropper-container").style.display = "block";
+        document.getElementById("btn-redact").style.display = "flex";
+        document.getElementById("btn-redact-apply").style.display = "none";
+        document.getElementById("btn-redact-cancel").style.display = "none";
+        setDropdownsDisabled(false);
+        
+        
+        
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "blur_on";
+        icon.classList.remove("spinning");
+        text.textContent = "Auto-Redact";
+        document.getElementById("btn-redact").disabled = false;
+      });
+
+      document.getElementById("btn-redact-apply").addEventListener("click", () => {
+        const ctx = window.pendingRedactCanvas.getContext("2d");
+        const mode = document.getElementById("redact-mode").value;
+        
+        window.pendingRedactBoxes.forEach(box => {
+          if (!box) return;
+          if (mode === "white") {
+            ctx.fillStyle = "white";
+            ctx.fillRect(box.x, box.y, box.w, box.h);
+          } else if (mode === "blur") {
+            ctx.save();
+            ctx.filter = `blur(${Math.max(5, box.w/10)}px)`;
+            ctx.drawImage(window.pendingRedactCanvas, box.x, box.y, box.w, box.h, box.x, box.y, box.w, box.h);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = "black";
+            ctx.fillRect(box.x, box.y, box.w, box.h);
+          }
+        });
+        
+        const finalDataUrl = window.pendingRedactCanvas.toDataURL("image/png");
+        cropper.destroy();
+        document.getElementById("editor-image").src = finalDataUrl;
+        
+        document.getElementById("redact-review-container").style.display = "none";
+        document.getElementById("editor-image").style.display = "block";
+        document.getElementById("btn-redact").style.display = "flex";
+        document.getElementById("btn-redact-apply").style.display = "none";
+        document.getElementById("btn-redact-cancel").style.display = "none";
+        setDropdownsDisabled(false);
+        
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        icon.textContent = "blur_on";
+        icon.classList.remove("spinning");
+        text.textContent = "Auto-Redact";
+        document.getElementById("btn-redact").disabled = false;
+        
+        initCropper();
+        enableSave();
+        showToast("Redactions applied successfully.");
+      });
+      
+    // Custom Dropdown Logic
+      function setupDropdown(id, inputId, labelId, iconId) {
+        const btn = document.getElementById('btn-' + id);
+        const content = document.getElementById('content-' + id);
+        const input = document.getElementById(inputId);
+        const label = document.getElementById(labelId);
+        const icon = document.getElementById(iconId);
+        
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.custom-dropdown-content').forEach(c => {
+            if(c !== content) c.classList.remove('show');
+          });
+          content.classList.toggle('show');
+        });
+        
+        content.querySelectorAll('.custom-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            input.value = item.dataset.value;
+            const iconText = item.querySelector('.material-symbols-rounded').textContent;
+            label.textContent = item.textContent.replace(iconText, '').trim();
+            icon.textContent = iconText;
+            content.classList.remove('show');
+          });
+        });
+      }
+      
+      setupDropdown('dd-target', 'redact-target', 'target-label', 'target-icon');
+      setupDropdown('dd-mode', 'redact-mode', 'mode-label', 'mode-icon');
+      
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown-content').forEach(c => c.classList.remove('show'));
+      });
+      
+      function setDropdownsDisabled(disabled) {
+        const ddt = document.getElementById('dd-target');
+        const ddm = document.getElementById('dd-mode');
+        if (disabled) {
+          ddt.classList.add('disabled');
+          ddm.classList.add('disabled');
+        } else {
+          ddt.classList.remove('disabled');
+          ddm.classList.remove('disabled');
+        }
+      }
+
+    
+
+document.getElementById('editor-back-normal-btn').addEventListener('click', () => {
+    document.getElementById('editor-right-resizer').style.display = 'none';
+    document.getElementById('editor-options-panel').style.display = 'none';
+    document.getElementById('editor-edit-btn').style.display = 'flex';
+    if(cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+    const btnCancel = document.getElementById("btn-cancel");
+    if(btnCancel) btnCancel.click(); // Reset state
+});
+
