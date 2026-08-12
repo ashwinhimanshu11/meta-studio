@@ -16,3 +16,7 @@ application to perform multiple file operations
 05-08-26: added video editor, fix image editor UI, add cropper rotation and straighten features
 
 07-08-26: perfected redaction features, changed GUI elements
+
+11-08-26: implemented video edit features
+
+12-08-26: implemented video blur
