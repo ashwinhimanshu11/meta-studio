@@ -41,8 +41,24 @@ export function initProgress() {
   };
 
   window.electronAPI.onTaskProgress((payload) => {
-    if (!progModal.classList.contains("active"))
-      window.showProgress(payload.title);
-    window.updateProgress(payload.current, payload.total, payload.detail);
+    if (typeof payload === "string") {
+      if (!progModal.classList.contains("active")) {
+        window.showProgress("Processing...");
+      }
+      const match = payload.match(/(\d+)%/);
+      if (match) {
+        const pct = parseInt(match[1]);
+        window.updateProgress(pct, 100, payload);
+      } else {
+        progDetail.textContent = payload;
+      }
+      return;
+    }
+    if (payload && typeof payload === "object") {
+      if (!progModal.classList.contains("active")) {
+        window.showProgress(payload.title || "Processing...");
+      }
+      window.updateProgress(payload.current || 0, payload.total || 100, payload.detail);
+    }
   });
 }

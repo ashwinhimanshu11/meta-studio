@@ -823,6 +823,90 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
   });
 });
 
+ipcMain.handle("run-yolo-video-redact", async (event, inputFilePath, mode = "blur", target = "faces") => {
+  return new Promise((resolve) => {
+    const ext = path.extname(inputFilePath) || ".mp4";
+    const tempNoAudio = path.join(os.tmpdir(), `yolo_vid_raw_${Date.now()}${ext}`);
+    const tempFinal = path.join(os.tmpdir(), `yolo_vid_out_${Date.now()}${ext}`);
+    
+    const pythonPath = process.platform === "win32"
+      ? path.join(__dirname, "yolo_venv", "Scripts", "python.exe")
+      : path.join(__dirname, "yolo_venv", "bin", "python");
+    const scriptPath = path.join(__dirname, "yolo_redact.py");
+    
+    const { spawn } = require("child_process");
+    const child = spawn(pythonPath, [scriptPath, inputFilePath, tempNoAudio, mode, target], {
+      env: { ...process.env, PYTHONUNBUFFERED: "1" }
+    });
+    
+    let stdoutData = "";
+    let stderrData = "";
+    
+    child.stdout.on("data", (data) => {
+      const str = data.toString();
+      stdoutData += str;
+      const lines = str.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("PROGRESS:")) {
+          const pct = parseInt(line.replace("PROGRESS:", "").trim()) || 0;
+          mainWindow.webContents.send("task-progress", {
+            title: "Auto Redacting Faces",
+            current: pct,
+            total: 100,
+            detail: `Processing video frames (${pct}%)...`
+          });
+        }
+      }
+    });
+    
+    child.stderr.on("data", (data) => {
+      stderrData += data.toString();
+    });
+    
+    child.on("close", (code) => {
+      if (code !== 0) {
+        resolve({ error: stderrData || `Python exited with code ${code}` });
+        return;
+      }
+      
+      try {
+        const jsonMatch = stdoutData.match(/\{.*"success".*\}/);
+        const resultStr = jsonMatch ? jsonMatch[0] : stdoutData;
+        const result = JSON.parse(resultStr);
+        
+        if (!result.success) {
+          resolve({ error: result.error || "Video redaction failed" });
+          return;
+        }
+        
+        const ffmpegPath = getBundledBinaryPath("ffmpeg");
+        const ffmpegArgs = [
+          "-i", tempNoAudio,
+          "-i", inputFilePath,
+          "-c:v", "copy",
+          "-c:a", "aac",
+          "-map", "0:v:0",
+          "-map", "1:a:0?",
+          "-y", tempFinal
+        ];
+        
+        execFile(ffmpegPath, ffmpegArgs, (err) => {
+          try {
+            if (fs.existsSync(tempNoAudio)) fs.unlinkSync(tempNoAudio);
+          } catch(e) {}
+          
+          if (err) {
+            resolve({ success: true, outputPath: tempNoAudio });
+          } else {
+            resolve({ success: true, outputPath: tempFinal });
+          }
+        });
+      } catch (e) {
+        resolve({ error: "Failed to parse Python output: " + stdoutData });
+      }
+    });
+  });
+});
 
 ipcMain.handle("save-video", async (event, payload) => {
   const os = require('os');

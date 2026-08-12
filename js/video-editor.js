@@ -602,6 +602,48 @@ let currentFilePath = null;
         applyBlurSettings(st, en);
       });
       
+      const autoRedactBtn = document.getElementById("btn-auto-redact-video");
+      if (autoRedactBtn) {
+        autoRedactBtn.addEventListener("click", async () => {
+          if (!currentFilePath) {
+            alert("No video file selected.");
+            return;
+          }
+          
+          const originalContent = autoRedactBtn.innerHTML;
+          autoRedactBtn.disabled = true;
+          autoRedactBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px; animation: spin 1s linear infinite;">sync</span> Redacting...';
+          
+          if (typeof window.showProgress === "function") {
+            window.showProgress("Auto Redacting Faces");
+          } else {
+            showToast("Starting Auto Face Redaction...");
+          }
+          
+          try {
+            const result = await window.electronAPI.runYoloVideoRedact(currentFilePath, "blur", "faces");
+            
+            if (result.error) {
+              showToast("Redaction Error: " + result.error);
+            } else if (result.success && result.outputPath) {
+              currentFilePath = result.outputPath;
+              video.src = currentFilePath;
+              video.load();
+              enableSave();
+              showToast("Auto Face Redaction Complete!");
+            }
+          } catch (e) {
+            showToast("Error: " + e.message);
+          } finally {
+            if (typeof window.hideProgress === "function") {
+              window.hideProgress();
+            }
+            autoRedactBtn.disabled = false;
+            autoRedactBtn.innerHTML = originalContent;
+          }
+        });
+      }
+
       document.getElementById("btn-save-vid").addEventListener("click", (e) => {
         if (!isEdited) return;
         e.stopPropagation();

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   prepareVideoProxy: (payload) => ipcRenderer.invoke("prepare-video-proxy", payload),
   onProxyProgress: (callback) => ipcRenderer.on("proxy-progress", (event, p) => callback(p)),
   saveVideo: (payload) => ipcRenderer.invoke("save-video", payload),
+  runYoloVideoRedact: (inputFilePath, mode, target) => ipcRenderer.invoke("run-yolo-video-redact", inputFilePath, mode, target),
   onMetadataUpdated: (callback) =>
     ipcRenderer.on("metadata-updated", (event, paths) => callback(paths)),
   selectFilesDialog: (options) => ipcRenderer.invoke("select-files-dialog", options),

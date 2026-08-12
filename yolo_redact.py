@@ -25,6 +25,84 @@ def apply_redaction(img, nx1, ny1, nx2, ny2, mode):
         # Default is black
         cv2.rectangle(img, (nx1, ny1), (nx2, ny2), (0, 0, 0), -1)
 
+def process_video(input_path, output_path, model, face_cascade, mode="blur", target_type="faces"):
+    cap = cv2.VideoCapture(input_path)
+    if not cap.isOpened():
+        print(json.dumps({"error": f"Cannot open video {input_path}"}))
+        sys.exit(1)
+        
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    if fps <= 0 or fps != fps: # NaN check
+        fps = 30.0
+        
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    
+    frame_idx = 0
+    last_reported_pct = -1
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+            
+        frame_idx += 1
+        
+        # Predict on frame with optimized resolution (imgsz=480 for 5x speedup)
+        results = model.predict(frame, imgsz=480, verbose=False)
+        
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                if cls_id != 0: # person class
+                    continue
+                    
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                w = x2 - x1
+                h = y2 - y1
+                
+                upper_body_y2 = min(height, y1 + int(h * 0.45))
+                upper_body_roi = frame[y1:upper_body_y2, x1:x2]
+                
+                faces = []
+                if upper_body_roi.size > 0:
+                    gray_roi = cv2.cvtColor(upper_body_roi, cv2.COLOR_BGR2GRAY)
+                    faces = face_cascade.detectMultiScale(gray_roi, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
+                
+                if len(faces) > 0:
+                    for (fx, fy, fw, fh) in faces:
+                        abs_fx1 = max(0, x1 + fx)
+                        abs_fy1 = max(0, y1 + fy)
+                        abs_fx2 = min(width, abs_fx1 + fw)
+                        abs_fy2 = min(height, abs_fy1 + fh)
+                        apply_redaction(frame, abs_fx1, abs_fy1, abs_fx2, abs_fy2, mode)
+                else:
+                    face_w = w * 0.3
+                    face_h = face_w * 1.3
+                    cx = x1 + w / 2
+                    nx1 = max(0, int(cx - face_w / 2))
+                    ny1 = max(0, int(y1 + w * 0.02))
+                    nx2 = min(width, int(cx + face_w / 2))
+                    ny2 = min(height, int(ny1 + face_h))
+                    apply_redaction(frame, nx1, ny1, nx2, ny2, mode)
+                    
+        out.write(frame)
+        
+        if total_frames > 0:
+            pct = int((frame_idx / total_frames) * 100)
+            if pct != last_reported_pct:
+                print(f"PROGRESS:{pct}", flush=True)
+                sys.stdout.flush()
+                last_reported_pct = pct
+                
+    cap.release()
+    out.release()
+    print(json.dumps({"success": True}))
+
 def main():
     if len(sys.argv) < 3:
         print(json.dumps({"error": "Usage: python yolo_redact.py <input> <output> [mode]"}))
@@ -36,18 +114,22 @@ def main():
     target_type = sys.argv[4] if len(sys.argv) > 4 else "faces"
     
     os.environ["YOLO_VERBOSE"] = "False"
-    
-    # We will just use the standard yolov8n which is very reliable and auto-downloads
     model_path = 'yolov8n.pt'
     
     try:
-        # Load model quietly
-        os.environ["YOLO_VERBOSE"] = "False"
         model = YOLO(model_path)
     except Exception as e:
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
         
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
+    
+    is_video = input_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))
+    if is_video:
+        process_video(input_path, output_path, model, face_cascade, mode, target_type)
+        return
+
     img = cv2.imread(input_path)
     if img is None:
         print(json.dumps({"error": "Cannot read image"}))
@@ -55,10 +137,6 @@ def main():
         
     results = model.predict(img, verbose=False)
     boxes_out = []
-    
-    # Initialize Haar Cascade for accurate face detection within the person
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
     
     for r in results:
         for box in r.boxes:
@@ -116,7 +194,6 @@ def main():
                     boxes_out.append({"x": int(nx1), "y": int(ny1), "w": int(nx2 - nx1), "h": int(ny2 - ny1)})
             
             elif target_type == "plates":
-                # Search for license plate in vehicle ROI
                 vehicle_roi = img[y1:y2, x1:x2]
                 plates = []
                 if vehicle_roi.size > 0:

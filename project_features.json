@@ -64,6 +64,7 @@
         "Video Blur Overlay (Full video blur or timeframe-specific blur with start/end duration inputs)",
         "Dynamic FFmpeg Boxblur Engine (Automatically calculates luma & chroma radii based on crop box dimensions to prevent FFmpeg crashes on small selections)",
         "Live Blur Preview (Real-time HTML/CSS overlay with backdrop-filter: blur(15px) positioned over video player, tracking video playback timestamp & zoom)",
+        "Automated AI Face Redaction (YOLOv8 & OpenCV frame-by-frame tracking & blurring across the video, preserving original audio)",
         "Save options: 'Replace Original' or 'Save as New File' with UI loading feedback state ('Saving...')"
       ]
     },
