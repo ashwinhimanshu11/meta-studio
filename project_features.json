@@ -1,0 +1,106 @@
+{
+  "project_name": "gts-meta-studio",
+  "version": "1.0.0",
+  "description": "Cross-platform Desktop Application for Metadata Inspection/Stripping, Image & Video Editing, AI Redaction, and Media Conversion.",
+  "tech_stack": {
+    "framework": "Electron (CommonJS)",
+    "runtime": "Node.js",
+    "frontend": "HTML5, Vanilla CSS (styles.css), JavaScript ES Modules",
+    "external_binaries": {
+      "ffmpeg": "bin/{mac,win}/ffmpeg - Video trimming, cropping, muting, blurring, and format conversion",
+      "ffprobe": "bin/{mac,win}/ffprobe - Media stream analysis and duration probe",
+      "exiftool": "bin/{mac,win}/exiftool - Detailed metadata extraction and stripping"
+    },
+    "ai_engine": {
+      "script": "yolo_redact.py",
+      "model": "yolov8n.pt",
+      "function": "Automated object, face, and license plate redaction using YOLOv8"
+    },
+    "libraries": [
+      "Cropper.js (Interactive cropping, rotation, and blur boundary selection)"
+    ]
+  },
+  "ui_architecture": {
+    "main_layout": "Single-window, multi-workspace architecture in index.html with single-pane RHS options panel",
+    "sidebars": {
+      "left_sidebar": "Directory/File tree browser & module navigation",
+      "middle_pane": "Media player, main image canvas, or metadata inspector workspace",
+      "right_sidebar": "Contextual editing tools panel (displaces standard window when 'Edit' is clicked, includes top 'Back to normal' button)"
+    }
+  },
+  "core_features": {
+    "metadata_studio": {
+      "module": "js/metadata.js",
+      "description": "Inspect and clean EXIF/GPS/hardware metadata from image files",
+      "features": [
+        "Interactive directory file tree browser",
+        "Comprehensive EXIF metadata key-value table extraction via ExifTool",
+        "Image thumbnail preview",
+        "Single file metadata stripping",
+        "Batch folder metadata stripping with backup option"
+      ]
+    },
+    "image_editor": {
+      "module": "js/editor.js",
+      "description": "Full image editing, manual & automated AI redaction suite",
+      "features": [
+        "Interactive Crop with freeform & fixed aspect ratio presets",
+        "Rotation (clockwise/counter-clockwise) and horizontal/vertical flip",
+        "Straighten adjustment control",
+        "Manual Blur / Pixelation region drawing",
+        "Automated AI Redaction via YOLOv8 (detects faces, plates, sensitive objects)",
+        "Save options: 'Replace Original' (with auto-backup) or 'Save as New File'",
+        "UI loading state feedback on Save button during processing"
+      ]
+    },
+    "video_editor": {
+      "module": "js/video-editor.js",
+      "description": "Video trimming, cropping, bulk muting, and time-frame blur suite",
+      "features": [
+        "Icon-only Edit Video button (movie_edit icon)",
+        "Precise Video Trimming (trimStart & trimEnd inputs with video time markers)",
+        "Visual Video Crop (Cropper.js overlay; automatically enforces even output width/height for FFmpeg libx264 compatibility)",
+        "Audio Muting (Single video mute toggle & Bulk Mute feature via #dd-bulk-mute for selected files/folders)",
+        "Video Blur Overlay (Full video blur or timeframe-specific blur with start/end duration inputs)",
+        "Dynamic FFmpeg Boxblur Engine (Automatically calculates luma & chroma radii based on crop box dimensions to prevent FFmpeg crashes on small selections)",
+        "Live Blur Preview (Real-time HTML/CSS overlay with backdrop-filter: blur(15px) positioned over video player, tracking video playback timestamp & zoom)",
+        "Save options: 'Replace Original' or 'Save as New File' with UI loading feedback state ('Saving...')"
+      ]
+    },
+    "media_converter": {
+      "module": "js/converter.js",
+      "description": "Batch image and video format converter",
+      "features": [
+        "Multi-format image conversion (.png, .jpg, .webp, .tiff, etc.)",
+        "Multi-format video transcode (.mp4, .mkv, .avi, .webm, .mov, etc.)",
+        "Real-time conversion progress bar (js/progress.js) receiving IPC updates from main process"
+      ]
+    }
+  },
+  "ipc_channels": {
+    "main_process": "main.js",
+    "preload_bridge": "preload.js (exposes window.electronAPI)",
+    "channels": [
+      "save-image: Handles canvas data write & file saving",
+      "save-video: Executes FFmpeg filter complex pipelines for trim, crop, blur, mute, and save",
+      "strip-metadata: Calls ExifTool binary for single/batch metadata removal",
+      "convert-file: Spawns FFmpeg for format conversions",
+      "yolo-redact: Spawns Python process running yolo_redact.py for AI redaction"
+    ]
+  },
+  "file_structure": {
+    "main.js": "Electron main entry point & IPC backend handlers",
+    "preload.js": "IPC context bridge",
+    "index.html": "Main UI structure containing all workspaces & side panels",
+    "styles.css": "Global design system, dark theme, layout rules, custom dropdowns, and animations",
+    "js/editor.js": "Image editor workspace frontend logic",
+    "js/video-editor.js": "Video editor workspace frontend logic & live blur preview",
+    "js/metadata.js": "Metadata inspector & cleaner frontend logic",
+    "js/converter.js": "Media converter frontend logic",
+    "js/progress.js": "Progress bar component handler",
+    "js/ui.js": "UI helpers & notification toasts",
+    "js/utils.js": "Utility helpers",
+    "yolo_redact.py": "Python script for YOLOv8 AI object detection and redaction",
+    "bin/": "Platform-specific executable binaries (FFmpeg, ExifTool)"
+  }
+}
