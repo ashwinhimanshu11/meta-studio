@@ -292,10 +292,10 @@ let isEdited = false;
         }
         
         currentFilePath = payload.filePath;
-        document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
+        document.getElementById('editor-filename-display').textContent = payload.filePath.split(/[/\\]/).pop();
         
         const details = await window.electronAPI.getFileDetails(payload.filePath);
-        const image = document.getElementById("editor-image");
+        const image = document.getElementById('editor-preview-img');
         if (details.thumbnail) {
           image.src = details.thumbnail;
         } else {
@@ -325,7 +325,7 @@ let isEdited = false;
             }
           });
         };
-      });
+      };
 
       document.getElementById("btn-crop").addEventListener("click", () => {
         if (!cropper) return;
@@ -340,7 +340,7 @@ let isEdited = false;
           
           // Re-init cropper to properly render grid lines and corners
           cropper.destroy();
-          const image = document.getElementById("editor-image");
+          const image = document.getElementById('editor-preview-img');
           cropper = new Cropper(image, {
             viewMode: 2,
             dragMode: 'crop', 
@@ -366,7 +366,7 @@ let isEdited = false;
           cropper.destroy();
           cropper = null;
           
-          const image = document.getElementById("editor-image");
+          const image = document.getElementById('editor-preview-img');
           image.src = canvas.toDataURL("image/png");
           
           isEdited = true;
@@ -611,7 +611,7 @@ let isEdited = false;
         disableSave();
         
         // Restore original image which triggers onload and resets cropper
-        const image = document.getElementById("editor-image");
+        const image = document.getElementById('editor-preview-img');
         image.src = originalSrc;
       });
 
@@ -620,7 +620,7 @@ let isEdited = false;
         
         // Get the final canvas data
         const canvas = cropper ? cropper.getCroppedCanvas() : null;
-        const dataUrl = canvas ? canvas.toDataURL("image/png") : document.getElementById("editor-image").src;
+        const dataUrl = canvas ? canvas.toDataURL("image/png") : document.getElementById('editor-preview-img').src;
         
         const result = await window.electronAPI.saveImage({
           dataUrl,
@@ -633,7 +633,7 @@ let isEdited = false;
           if (!replace) {
              // update current file path if saved as new
              currentFilePath = result.path;
-             document.getElementById("filename-display").textContent = currentFilePath.split(/[/\\]/).pop();
+             document.getElementById('editor-filename-display').textContent = currentFilePath.split(/[/\\]/).pop();
           }
           
           // Reset UI
@@ -686,10 +686,10 @@ let isEdited = false;
         
         const finalDataUrl = window.pendingRedactCanvas.toDataURL("image/png");
         cropper.destroy();
-        document.getElementById("editor-image").src = finalDataUrl;
+        document.getElementById('editor-preview-img').src = finalDataUrl;
         
         document.getElementById("redact-review-container").style.display = "none";
-        document.getElementById("editor-image").style.display = "block";
+        document.getElementById('editor-preview-img').style.display = "block";
         document.getElementById("btn-redact").style.display = "flex";
         document.getElementById("btn-redact-apply").style.display = "none";
         document.getElementById("btn-redact-cancel").style.display = "none";

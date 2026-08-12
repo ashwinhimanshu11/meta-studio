@@ -269,7 +269,7 @@ let isEdited = false;
       let cropData = null; // { x, y, width, height }
       let blurData = null; // { x, y, w, h, start, end }
       
-      const video = document.getElementById("editor-video");
+      const video = document.getElementById('video-preview-vid');
       const trimStart = document.getElementById("trim-start");
       const trimEnd = document.getElementById("trim-end");
       
@@ -565,7 +565,7 @@ let isEdited = false;
         }
         
         currentFilePath = payload.filePath;
-        document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
+        document.getElementById('video-filename-display').textContent = payload.filePath.split(/[/\\]/).pop();
         
         const overlay = document.createElement("div");
         overlay.id = "proxy-overlay";
@@ -578,7 +578,7 @@ let isEdited = false;
           </div>
           <div id="proxy-text" style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">0%</div>
         `;
-        document.getElementById("editor-container-main").appendChild(overlay);
+        document.getElementById('video-preview-container').appendChild(overlay);
         overlay.style.display = "none";
         
         let proxyStarted = false;
@@ -600,7 +600,7 @@ let isEdited = false;
         } else {
           video.src = 'file://' + res.proxyPath;
         }
-      });
+      };
     
 
 document.getElementById('video-back-normal-btn').addEventListener('click', () => {
