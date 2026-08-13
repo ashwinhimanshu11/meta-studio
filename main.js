@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, clipboard, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { execFile } = require("child_process");
+const { performWindowsSetup } = require("./setup-main.js");
 
 // ==========================================
 // GLOBALS & CANCELLATION TRACKERS
@@ -25,29 +26,23 @@ ipcMain.on("cancel-task", () => {
 // HELPERS
 // ==========================================
 function getExiftoolPath() {
-  let platformFolder = "linux";
-  let executableName = "exiftool";
-  if (process.platform === "win32") {
-    platformFolder = "win";
-    executableName = "exiftool.exe";
-  } else if (process.platform === "darwin") {
-    platformFolder = "mac";
+  const isWin = process.platform === "win32";
+  const executableName = isWin ? "exiftool.exe" : "exiftool";
+  if (isWin) {
+    return path.join(app.getPath("userData"), "bin", executableName);
   }
-
+  let platformFolder = process.platform === "darwin" ? "mac" : "linux";
   const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
   return path.join(baseDir, "bin", platformFolder, executableName);
 }
 
 function getBundledBinaryPath(binaryName) {
-  let platformFolder = "linux";
-  let executableName = binaryName;
-  if (process.platform === "win32") {
-    platformFolder = "win";
-    executableName = `${binaryName}.exe`;
-  } else if (process.platform === "darwin") {
-    platformFolder = "mac";
+  const isWin = process.platform === "win32";
+  const executableName = isWin ? `${binaryName}.exe` : binaryName;
+  if (isWin) {
+    return path.join(app.getPath("userData"), "bin", executableName);
   }
-
+  let platformFolder = process.platform === "darwin" ? "mac" : "linux";
   const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
   return path.join(baseDir, "bin", platformFolder, executableName);
 }
@@ -255,6 +250,15 @@ function createWindow() {
     },
   });
   mainWindow.loadFile("index.html");
+  mainWindow.webContents.once("did-finish-load", () => {
+    if (process.platform === "win32") {
+      const ffmpegExists = fs.existsSync(getBundledBinaryPath("ffmpeg"));
+      const pythonExists = fs.existsSync(path.join(app.getPath("userData"), "yolo", "python", "python.exe"));
+      if (!ffmpegExists || !pythonExists) {
+        mainWindow.webContents.send("show-setup-screen");
+      }
+    }
+  });
   mainWindow.webContents.on("will-navigate", (event) => event.preventDefault());
   mainWindow.on("closed", function () {
     mainWindow = null;
@@ -278,6 +282,10 @@ app.on("activate", function () {
 // ==========================================
 // IPC HANDLERS
 // ==========================================
+ipcMain.handle("start-windows-setup", async (event) => {
+  return await performWindowsSetup(event);
+});
+
 ipcMain.handle("read-dir", async (event, dirPath) => {
   try {
     const stat = fs.statSync(dirPath);
@@ -791,9 +799,11 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
     
     const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
     const pythonPath = process.platform === "win32"
-      ? path.join(baseDir, "yolo_venv", "Scripts", "python.exe")
+      ? path.join(app.getPath("userData"), "yolo", "python", "python.exe")
       : path.join(baseDir, "yolo_venv", "bin", "python");
-    const scriptPath = path.join(baseDir, "yolo_redact.py");
+    const scriptPath = process.platform === "win32"
+      ? path.join(app.getPath("userData"), "yolo", "yolo_redact.py")
+      : path.join(baseDir, "yolo_redact.py");
     
     exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}"`, (error, stdout, stderr) => {
       try {
@@ -835,9 +845,11 @@ ipcMain.handle("run-yolo-video-redact", async (event, inputFilePath, mode = "blu
     
     const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
     const pythonPath = process.platform === "win32"
-      ? path.join(baseDir, "yolo_venv", "Scripts", "python.exe")
+      ? path.join(app.getPath("userData"), "yolo", "python", "python.exe")
       : path.join(baseDir, "yolo_venv", "bin", "python");
-    const scriptPath = path.join(baseDir, "yolo_redact.py");
+    const scriptPath = process.platform === "win32"
+      ? path.join(app.getPath("userData"), "yolo", "yolo_redact.py")
+      : path.join(baseDir, "yolo_redact.py");
     
     const { spawn } = require("child_process");
     const child = spawn(pythonPath, [scriptPath, inputFilePath, tempNoAudio, mode, target], {

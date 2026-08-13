@@ -58,6 +58,46 @@ export function initUI() {
     settingsBackBtn.addEventListener("click", () => setAppMode(""));
   }
 
+  // Windows First Time Setup Logic
+  window.electronAPI.onShowSetupScreen(() => {
+    setAppMode("setup");
+  });
+
+  const startSetupBtn = document.getElementById("start-setup-btn");
+  const setupProgressContainer = document.getElementById("setup-progress-container");
+  const setupProgressBar = document.getElementById("setup-progress-bar");
+  const setupStatusText = document.getElementById("setup-status-text");
+  const setupProgressPercent = document.getElementById("setup-progress-percent");
+
+  if (startSetupBtn) {
+    startSetupBtn.addEventListener("click", async () => {
+      startSetupBtn.style.display = "none";
+      setupProgressContainer.style.display = "block";
+      
+      const result = await window.electronAPI.startWindowsSetup();
+      if (result.success) {
+        setupStatusText.innerText = "Setup Complete!";
+        setupProgressBar.style.width = "100%";
+        setupProgressPercent.innerText = "100%";
+        setTimeout(() => {
+          setAppMode(""); // Go to main launcher
+        }, 1500);
+      } else {
+        setupStatusText.innerText = "Error: " + result.error;
+        setupStatusText.style.color = "#ef4444";
+        startSetupBtn.style.display = "flex";
+        startSetupBtn.innerText = "Retry Setup";
+      }
+    });
+  }
+
+  window.electronAPI.onSetupProgress(({ task, percent }) => {
+    if (setupStatusText) setupStatusText.innerText = task;
+    if (setupProgressBar) setupProgressBar.style.width = `${Math.round(percent * 100)}%`;
+    if (setupProgressPercent) setupProgressPercent.innerText = `${Math.round(percent * 100)}%`;
+  });
+
+
   // ==========================================
   // PERSISTENT THEME LOGIC
   // ==========================================

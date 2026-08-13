@@ -95,8 +95,17 @@ body[data-mode="metadata"] #app-launcher,
 body[data-mode="converter"] #app-launcher,
 body[data-mode="editor"] #app-launcher,
 body[data-mode="video-editor"] #app-launcher,
-body[data-mode="settings"] #app-launcher {
+body[data-mode="settings"] #app-launcher,
+body[data-mode="setup"] #app-launcher {
     display: none !important;
+}
+
+/* 1.5 SETUP WORKSPACE */
+body:not([data-mode="setup"]) #setup-workspace {
+    display: none !important;
+}
+body[data-mode="setup"] #setup-workspace {
+    display: flex !important;
 }
 
 /* 2. METADATA WORKSPACE (Strictly direct children) */

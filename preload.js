@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onTaskProgress: (callback) =>
     ipcRenderer.on("task-progress", (event, payload) => callback(payload)),
   cancelTask: () => ipcRenderer.send("cancel-task"),
+  startWindowsSetup: () => ipcRenderer.invoke("start-windows-setup"),
+  onShowSetupScreen: (callback) => ipcRenderer.on("show-setup-screen", callback),
+  onSetupProgress: (callback) => ipcRenderer.on("setup-progress", (event, p) => callback(p)),
 
   // Popup Window Controls
   openExifWindow: (payload) => ipcRenderer.send("open-exif-window", payload),

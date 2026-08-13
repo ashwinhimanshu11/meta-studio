@@ -1090,6 +1090,27 @@
         </div>
       </div>
     </div>
+    <div id="setup-workspace" class="setup-workspace" style="display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-base); padding: 32px; box-sizing: border-box;">
+      <div style="width: min(480px, 100%); background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center;">
+        <span class="material-symbols-rounded" style="font-size: 64px; color: var(--gts-teal); margin-bottom: 16px;">download</span>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; color: var(--text-main);">First Time Setup</h2>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">Sarvia needs to download and configure some core tools for Windows (FFmpeg, ExifTool, and Python AI dependencies) before it can run. This will only happen once.</p>
+        
+        <div id="setup-progress-container" style="display: none;">
+          <div style="width: 100%; height: 6px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; margin-bottom: 8px;">
+            <div id="setup-progress-bar" style="width: 0%; height: 100%; background: var(--gts-teal); transition: width 0.3s ease;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span id="setup-status-text">Preparing...</span>
+            <span id="setup-progress-percent">0%</span>
+          </div>
+        </div>
+
+        <button id="start-setup-btn" class="icon-btn active" style="margin-top: 24px; justify-content: center; padding: 12px 24px; font-weight: 400; width: 100%;">
+          Start Download & Setup
+        </button>
+      </div>
+    </div>
     <div id="settings-workspace" class="settings-workspace" style="display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-base); padding: 32px; box-sizing: border-box;">
       <div style="width: min(480px, 100%); background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
