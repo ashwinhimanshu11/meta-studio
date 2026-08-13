@@ -90,11 +90,11 @@
       <button
         class="icon-btn global-settings-btn"
         style="
-          position: absolute;
+          position: fixed;
           top: 24px;
           right: 24px;
           padding: 8px;
-          z-index: 100;
+          z-index: 999999;
         "
         title="Settings"
       >
@@ -331,12 +331,6 @@
               title="Toggle Inspector"
             >
               <span class="material-symbols-rounded">dock_to_left</span>
-            </button>
-            <button
-              class="icon-btn global-settings-btn"
-              title="Settings"
-            >
-              <span class="material-symbols-rounded">settings</span>
             </button>
           </div>
         </div>
@@ -631,12 +625,6 @@
               >Status log</span
             >
           </div>
-          <button
-            class="icon-btn global-settings-btn"
-            title="Settings"
-          >
-            <span class="material-symbols-rounded">settings</span>
-          </button>
         </div>
 
         <div
@@ -833,11 +821,6 @@
       <div class="resizer"></div>
 
       <div class="main-content editor-main" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 30px;">
-        <div style="position: absolute; top: 15px; right: 20px; z-index: 10;">
-          <button class="icon-btn global-settings-btn" title="Settings">
-            <span class="material-symbols-rounded">settings</span>
-          </button>
-        </div>
         <div id="editor-empty-state" class="main-empty-state">
           <span class="material-symbols-rounded">image</span>
           <h2>Select an Image</h2>
@@ -968,11 +951,6 @@
       <div class="resizer"></div>
 
       <div class="main-content editor-main" style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 30px;">
-        <div style="position: absolute; top: 15px; right: 20px; z-index: 10;">
-          <button class="icon-btn global-settings-btn" title="Settings">
-            <span class="material-symbols-rounded">settings</span>
-          </button>
-        </div>
         <div id="video-empty-state" class="main-empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
           <span class="material-symbols-rounded">movie</span>
           <h2>Select a Video</h2>
