@@ -19,6 +19,7 @@
   "build": {
     "appId": "com.gts.sarvia",
     "productName": "Sarvia",
+    "icon": "assets/icon.png",
     "files": [
       "**/*",
       "!yolo_venv/**/*",
