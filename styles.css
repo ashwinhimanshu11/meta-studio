@@ -94,7 +94,8 @@ body {
 body[data-mode="metadata"] #app-launcher,
 body[data-mode="converter"] #app-launcher,
 body[data-mode="editor"] #app-launcher,
-body[data-mode="video-editor"] #app-launcher {
+body[data-mode="video-editor"] #app-launcher,
+body[data-mode="settings"] #app-launcher {
     display: none !important;
 }
 
@@ -158,6 +159,17 @@ body[data-mode="video-editor"] #video-workspace {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+}
+
+/* 6. SETTINGS WORKSPACE */
+body:not([data-mode="settings"]) #settings-workspace {
+    display: none !important;
+}
+
+body[data-mode="settings"] #settings-workspace {
+    display: flex !important;
+    width: 100vw;
+    height: 100vh;
 }
 
 .app-launcher {

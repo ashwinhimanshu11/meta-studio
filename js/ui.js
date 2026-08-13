@@ -48,12 +48,21 @@ export function initUI() {
     .getElementById("video-back-btn")
     .addEventListener("click", () => setAppMode(""));
 
+  const globalSettingsBtn = document.getElementById("global-settings-btn");
+  if (globalSettingsBtn) {
+    globalSettingsBtn.addEventListener("click", () => setAppMode("settings"));
+  }
+
+  const settingsBackBtn = document.getElementById("settings-back-btn");
+  if (settingsBackBtn) {
+    settingsBackBtn.addEventListener("click", () => setAppMode(""));
+  }
+
   // ==========================================
-  // SETTINGS & PERSISTENT THEME LOGIC
+  // PERSISTENT THEME LOGIC
   // ==========================================
   const root = document.documentElement;
   const themeCheckbox = document.getElementById("theme-switch-checkbox");
-  const settingsModal = document.getElementById("settings-modal");
 
   // Sync the checkbox with whatever was instantly loaded by the <head> script
   if (root.getAttribute("data-theme") === "dark") {
@@ -68,27 +77,6 @@ export function initUI() {
     } else {
       root.removeAttribute("data-theme");
       localStorage.setItem("gts-theme", "light"); // Save to memory
-    }
-  });
-
-  // Open Settings Modal (Listens to all gear icons)
-  document.querySelectorAll(".global-settings-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      settingsModal.classList.add("active");
-    });
-  });
-
-  // Close Settings Modal on close button click or clicking dark backdrop
-  const closeSettingsBtn = document.getElementById("close-settings-btn");
-  if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener("click", () => {
-      settingsModal.classList.remove("active");
-    });
-  }
-  settingsModal.addEventListener("click", (e) => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.remove("active");
     }
   });
 

@@ -1104,54 +1104,33 @@
         </div>
       </div>
     </div>
-    <div id="settings-modal" class="progress-modal">
-      <div class="progress-box" style="width: min(350px, 90%); padding: 24px">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-          "
-        >
-          <h3 style="margin: 0; font-size: 18px; color: var(--text-main)">
-            Settings
-          </h3>
-          <button
-            id="close-settings-btn"
-            class="icon-btn"
-            style="padding: 4px; border: none"
-          >
-            <span class="material-symbols-rounded" style="font-size: 18px"
-              >close</span
-            >
+    <div id="settings-workspace" class="settings-workspace" style="display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-base); padding: 32px; box-sizing: border-box;">
+      <div style="width: min(480px, 100%); background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+          <button id="settings-back-btn" class="icon-btn" title="Back to main launcher" style="padding: 8px;">
+            <span class="material-symbols-rounded" style="font-size: 20px;">arrow_back</span>
           </button>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 600; color: var(--text-main);">Settings</h2>
         </div>
 
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--border-color);
-          "
-        >
-          <span
-            style="font-size: 13px; font-weight: 300; color: var(--text-main)"
-            >Dark Mode</span
-          >
-          <input
-            type="checkbox"
-            id="theme-switch-checkbox"
-            style="
-              cursor: pointer;
-              width: 16px;
-              height: 16px;
-              accent-color: var(--gts-teal);
-              margin: 0;
-            "
-          />
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border-color);">
+            <div>
+              <strong style="display: block; font-size: 14px; color: var(--text-main);">Dark Mode</strong>
+              <small style="color: var(--text-muted); font-size: 12px;">Toggle dark appearance theme for Sarvia</small>
+            </div>
+            <input
+              type="checkbox"
+              id="theme-switch-checkbox"
+              style="
+                cursor: pointer;
+                width: 18px;
+                height: 18px;
+                accent-color: var(--gts-teal);
+                margin: 0;
+              "
+            />
+          </div>
         </div>
       </div>
     </div>
