@@ -12,7 +12,7 @@ function downloadFile(url, dest, onProgress) {
           return request(response.headers.location);
         }
         if (response.statusCode !== 200) {
-          return reject(new Error(`Failed to get '${currentUrl}' (${response.statusCode})`));
+          return reject(new Error(`Download failed for '${currentUrl}' (Status: ${response.statusCode}). Please check your internet connection or try again later.`));
         }
         const total = parseInt(response.headers['content-length'] || '0', 10);
         let downloaded = 0;
@@ -50,6 +50,26 @@ function runCommand(command, cwd) {
   });
 }
 
+function getLatestExifToolUrl() {
+  return new Promise((resolve, reject) => {
+    https.get('https://exiftool.org/', (response) => {
+      let data = '';
+      response.on('data', chunk => data += chunk);
+      response.on('end', () => {
+        const match64 = data.match(/href="([^"]*exiftool-[0-9.]+_64\.zip)"/);
+        if (match64) {
+          return resolve(`https://exiftool.org/${match64[1]}`);
+        }
+        const match32 = data.match(/href="([^"]*exiftool-[0-9.]+\.zip)"/);
+        if (match32) {
+          return resolve(`https://exiftool.org/${match32[1]}`);
+        }
+        reject(new Error("Could not automatically find the latest ExifTool Windows zip link on exiftool.org."));
+      });
+    }).on('error', (err) => reject(new Error(`Failed to reach exiftool.org: ${err.message}`)));
+  });
+}
+
 async function performWindowsSetup(event) {
   const userData = app.getPath('userData');
   const binDir = path.join(userData, 'bin');
@@ -78,9 +98,11 @@ async function performWindowsSetup(event) {
     fs.rmSync(path.join(userData, 'ffmpeg-master-latest-win64-gpl'), { recursive: true, force: true });
 
     // 2. Download ExifTool
+    reportProgress('Finding latest ExifTool...', 0);
+    const exifUrl = await getLatestExifToolUrl();
     reportProgress('Downloading ExifTool...', 0);
     const exifZip = path.join(userData, 'exiftool.zip');
-    await downloadFile('https://exiftool.org/exiftool-13.10_64.zip', exifZip, (p) => reportProgress('Downloading ExifTool...', p));
+    await downloadFile(exifUrl, exifZip, (p) => reportProgress('Downloading ExifTool...', p));
     reportProgress('Extracting ExifTool...', 1);
     await runCommand(`powershell -command "Expand-Archive -Force '${exifZip}' '${userData}'"`, userData);
     fs.copyFileSync(path.join(userData, 'exiftool(-k).exe'), path.join(binDir, 'exiftool.exe'));
