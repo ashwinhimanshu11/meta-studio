@@ -1,7 +1,7 @@
 {
-  "name": "gts-meta-studio",
+  "name": "sarvia-studio",
   "version": "1.0.0",
-  "description": "Metadata and Media Conversion Studio",
+  "description": "Media Editing, Metadata Inspection, AI Redaction and Conversion Studio",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -17,11 +17,13 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.gts.metastudio",
-    "productName": "GTS Meta Studio",
-    "directories": {
-      "output": "dist"
-    },
+    "appId": "com.gts.sarvia",
+    "productName": "Sarvia Studio",
+    "files": [
+      "**/*",
+      "!yolo_venv/**/*",
+      "!yolo_venv"
+    ],
     "win": {
       "target": "nsis"
     },
@@ -34,8 +36,17 @@
         "from": "bin",
         "to": "bin",
         "filter": [
-          "**/*"
+          "**/*",
+          "!**/ffplay*"
         ]
+      },
+      {
+        "from": "yolo_redact.py",
+        "to": "yolo_redact.py"
+      },
+      {
+        "from": "yolov8n.pt",
+        "to": "yolov8n.pt"
       }
     ]
   },
