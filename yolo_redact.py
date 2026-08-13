@@ -122,9 +122,15 @@ def main():
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
         
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    face_xml = os.path.join(script_dir, 'haarcascade_frontalface_default.xml')
+    plate_xml = os.path.join(script_dir, 'haarcascade_russian_plate_number.xml')
+    
     try:
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
+        face_cascade = cv2.CascadeClassifier(face_xml)
+        if face_cascade.empty(): face_cascade = None
+        plate_cascade = cv2.CascadeClassifier(plate_xml)
+        if plate_cascade.empty(): plate_cascade = None
     except Exception:
         face_cascade = None
         plate_cascade = None

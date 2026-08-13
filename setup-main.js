@@ -141,8 +141,17 @@ async function performWindowsSetup(event) {
     // Install python script for inference
     reportProgress('Finalizing...', 0.9);
     const scriptSource = app.isPackaged ? path.join(process.resourcesPath, 'yolo_redact.py') : path.join(__dirname, 'yolo_redact.py');
+    const faceXmlSource = app.isPackaged ? path.join(process.resourcesPath, 'haarcascade_frontalface_default.xml') : path.join(__dirname, 'haarcascade_frontalface_default.xml');
+    const plateXmlSource = app.isPackaged ? path.join(process.resourcesPath, 'haarcascade_russian_plate_number.xml') : path.join(__dirname, 'haarcascade_russian_plate_number.xml');
+
     if (fs.existsSync(scriptSource)) {
         fs.copyFileSync(scriptSource, path.join(yoloDir, 'yolo_redact.py'));
+    }
+    if (fs.existsSync(faceXmlSource)) {
+        fs.copyFileSync(faceXmlSource, path.join(yoloDir, 'haarcascade_frontalface_default.xml'));
+    }
+    if (fs.existsSync(plateXmlSource)) {
+        fs.copyFileSync(plateXmlSource, path.join(yoloDir, 'haarcascade_russian_plate_number.xml'));
     }
 
     reportProgress('Setup Complete!', 1);
