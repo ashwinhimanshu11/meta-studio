@@ -69,7 +69,7 @@ def process_video(input_path, output_path, model, face_cascade, mode="blur", tar
                 upper_body_roi = frame[y1:upper_body_y2, x1:x2]
                 
                 faces = []
-                if upper_body_roi.size > 0:
+                if upper_body_roi.size > 0 and face_cascade is not None:
                     gray_roi = cv2.cvtColor(upper_body_roi, cv2.COLOR_BGR2GRAY)
                     faces = face_cascade.detectMultiScale(gray_roi, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
                 
@@ -162,7 +162,7 @@ def main():
                 upper_body_roi = img[y1:upper_body_y2, x1:x2]
                 
                 faces = []
-                if upper_body_roi.size > 0:
+                if upper_body_roi.size > 0 and face_cascade is not None:
                     gray_roi = cv2.cvtColor(upper_body_roi, cv2.COLOR_BGR2GRAY)
                     faces = face_cascade.detectMultiScale(gray_roi, scaleFactor=1.1, minNeighbors=3, minSize=(20, 20))
                 
@@ -200,7 +200,7 @@ def main():
             elif target_type == "plates":
                 vehicle_roi = img[y1:y2, x1:x2]
                 plates = []
-                if vehicle_roi.size > 0:
+                if vehicle_roi.size > 0 and plate_cascade is not None:
                     gray_roi = cv2.cvtColor(vehicle_roi, cv2.COLOR_BGR2GRAY)
                     plates = plate_cascade.detectMultiScale(gray_roi, scaleFactor=1.05, minNeighbors=2, minSize=(10, 10))
                 
