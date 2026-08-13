@@ -29,7 +29,7 @@ function getExiftoolPath() {
   const isWin = process.platform === "win32";
   const executableName = isWin ? "exiftool.exe" : "exiftool";
   if (isWin) {
-    return path.join(app.getPath("userData"), "bin", executableName);
+    return app.isPackaged ? path.join(process.resourcesPath, "bin", "win", "exiftool.exe") : path.join(__dirname, "bin", "win", "exiftool.exe");
   }
   let platformFolder = process.platform === "darwin" ? "mac" : "linux";
   const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
@@ -811,11 +811,11 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
       } catch (e) {}
       
       if (error) {
-        fs.writeFileSync("/tmp/yolo_debug.log", "Error: " + (stderr || error.message));
+        fs.writeFileSync(path.join(os.tmpdir(), "yolo_debug.log"), "Error: " + (stderr || error.message));
         resolve({ error: stderr || error.message });
       } else {
         try {
-          fs.writeFileSync("/tmp/yolo_debug.log", "Stdout: " + stdout);
+          fs.writeFileSync(path.join(os.tmpdir(), "yolo_debug.log"), "Stdout: " + stdout);
           // Extract only the JSON object from stdout to ignore any printed warnings
           const jsonMatch = stdout.match(/\{.*"success".*\}/);
           const resultStr = jsonMatch ? jsonMatch[0] : stdout;

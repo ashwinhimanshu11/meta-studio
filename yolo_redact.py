@@ -122,8 +122,12 @@ def main():
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
         
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
+    try:
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        plate_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_russian_plate_number.xml')
+    except Exception:
+        face_cascade = None
+        plate_cascade = None
     
     is_video = input_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'))
     if is_video:
