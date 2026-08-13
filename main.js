@@ -788,8 +788,11 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
     const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
     fs.writeFileSync(tempIn, base64Data, "base64");
     
-    const pythonPath = path.join(__dirname, "yolo_venv", "bin", "python");
-    const scriptPath = path.join(__dirname, "yolo_redact.py");
+    const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
+    const pythonPath = process.platform === "win32"
+      ? path.join(baseDir, "yolo_venv", "Scripts", "python.exe")
+      : path.join(baseDir, "yolo_venv", "bin", "python");
+    const scriptPath = path.join(baseDir, "yolo_redact.py");
     
     exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}"`, (error, stdout, stderr) => {
       try {
@@ -829,10 +832,11 @@ ipcMain.handle("run-yolo-video-redact", async (event, inputFilePath, mode = "blu
     const tempNoAudio = path.join(os.tmpdir(), `yolo_vid_raw_${Date.now()}${ext}`);
     const tempFinal = path.join(os.tmpdir(), `yolo_vid_out_${Date.now()}${ext}`);
     
+    const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
     const pythonPath = process.platform === "win32"
-      ? path.join(__dirname, "yolo_venv", "Scripts", "python.exe")
-      : path.join(__dirname, "yolo_venv", "bin", "python");
-    const scriptPath = path.join(__dirname, "yolo_redact.py");
+      ? path.join(baseDir, "yolo_venv", "Scripts", "python.exe")
+      : path.join(baseDir, "yolo_venv", "bin", "python");
+    const scriptPath = path.join(baseDir, "yolo_redact.py");
     
     const { spawn } = require("child_process");
     const child = spawn(pythonPath, [scriptPath, inputFilePath, tempNoAudio, mode, target], {
