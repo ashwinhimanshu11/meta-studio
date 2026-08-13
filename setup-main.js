@@ -97,17 +97,16 @@ async function performWindowsSetup(event) {
     fs.unlinkSync(ffmpegZip);
     fs.rmSync(path.join(userData, 'ffmpeg-master-latest-win64-gpl'), { recursive: true, force: true });
 
-    // 2. Download ExifTool
-    reportProgress('Finding latest ExifTool...', 0);
-    const exifUrl = await getLatestExifToolUrl();
-    reportProgress('Downloading ExifTool...', 0);
-    const exifZip = path.join(userData, 'exiftool.zip');
-    await downloadFile(exifUrl, exifZip, (p) => reportProgress('Downloading ExifTool...', p));
-    reportProgress('Extracting ExifTool...', 1);
-    await runCommand(`powershell -command "Expand-Archive -Force '${exifZip}' '${userData}'"`, userData);
-    fs.copyFileSync(path.join(userData, 'exiftool(-k).exe'), path.join(binDir, 'exiftool.exe'));
-    fs.unlinkSync(exifZip);
-    fs.unlinkSync(path.join(userData, 'exiftool(-k).exe'));
+    // 2. Setup ExifTool (Bundled)
+    reportProgress('Setting up ExifTool...', 0.5);
+    const bundledExifTool = app.isPackaged 
+      ? path.join(process.resourcesPath, 'bin', 'win', 'exiftool.exe') 
+      : path.join(__dirname, 'bin', 'win', 'exiftool.exe');
+    if (fs.existsSync(bundledExifTool)) {
+        fs.copyFileSync(bundledExifTool, path.join(binDir, 'exiftool.exe'));
+    } else {
+        throw new Error("Bundled ExifTool executable not found in resources.");
+    }
 
     // 3. Download YOLO Model
     reportProgress('Downloading YOLOv8 Model...', 0);
