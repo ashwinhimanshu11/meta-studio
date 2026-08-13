@@ -73,17 +73,24 @@ export function initUI() {
 
   // Open Settings Modal (Listens to all gear icons)
   document.querySelectorAll(".global-settings-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       settingsModal.classList.add("active");
     });
   });
 
-  // Close Settings Modal
-  document
-    .getElementById("close-settings-btn")
-    .addEventListener("click", () => {
+  // Close Settings Modal on close button click or clicking dark backdrop
+  const closeSettingsBtn = document.getElementById("close-settings-btn");
+  if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener("click", () => {
       settingsModal.classList.remove("active");
     });
+  }
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.classList.remove("active");
+    }
+  });
 
   // ==========================================
   // UNIVERSAL RESIZER LOGIC

@@ -1219,7 +1219,7 @@ tr:hover .exif-fetch-btn {
     align-items: center;
     justify-content: center;
     background: rgba(15, 23, 42, 0.6);
-    z-index: 99999;
+    z-index: 9999999;
     backdrop-filter: blur(4px);
 }
 .progress-modal.active {
