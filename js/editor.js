@@ -482,8 +482,10 @@ let currentFilePath = null;
             
             reviewImg.onload = () => {
               boxesContainer.innerHTML = "";
-              const scaleX = reviewImg.clientWidth / canvas.width;
-              const scaleY = reviewImg.clientHeight / canvas.height;
+              // Use naturalWidth to get the true image pixel dimensions after the
+              // browser has decoded the dataUrl, avoiding DPI/devicePixelRatio issues.
+              const scaleX = reviewImg.clientWidth / reviewImg.naturalWidth;
+              const scaleY = reviewImg.clientHeight / reviewImg.naturalHeight;
               
               result.boxes.forEach((box, i) => {
                 const boxDiv = document.createElement("div");
