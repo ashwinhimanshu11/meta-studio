@@ -134,8 +134,10 @@ async function performWindowsSetup(event) {
     reportProgress('Installing PIP...', 0.4);
     await runCommand(`.\\python.exe get-pip.py`, pythonDir);
 
-    // Install ultralytics and opencv
-    reportProgress('Installing AI Dependencies (This may take a few minutes)...', 0.6);
+    // Install ultralytics and opencv - use CPU-only torch to avoid CUDA DLL dependency issues on Windows
+    reportProgress('Installing PyTorch (CPU)...', 0.5);
+    await runCommand(`.\\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu`, pythonDir);
+    reportProgress('Installing AI Dependencies...', 0.7);
     await runCommand(`.\\python.exe -m pip install ultralytics opencv-python`, pythonDir);
     
     // Install python script for inference
