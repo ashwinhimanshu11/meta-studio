@@ -85,27 +85,24 @@ async function performWindowsSetup(event) {
   };
 
   try {
-    // 1. Download FFmpeg
-    reportProgress('Downloading FFmpeg...', 0);
-    const ffmpegZip = path.join(userData, 'ffmpeg.zip');
-    await downloadFile('https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip', ffmpegZip, (p) => reportProgress('Downloading FFmpeg...', p));
-    reportProgress('Extracting FFmpeg...', 1);
-    await runCommand(`powershell -command "Expand-Archive -Force '${ffmpegZip}' '${userData}'"`, userData);
-    const extractedFfmpegDir = path.join(userData, 'ffmpeg-master-latest-win64-gpl', 'bin');
-    fs.copyFileSync(path.join(extractedFfmpegDir, 'ffmpeg.exe'), path.join(binDir, 'ffmpeg.exe'));
-    fs.copyFileSync(path.join(extractedFfmpegDir, 'ffprobe.exe'), path.join(binDir, 'ffprobe.exe'));
-    fs.unlinkSync(ffmpegZip);
-    fs.rmSync(path.join(userData, 'ffmpeg-master-latest-win64-gpl'), { recursive: true, force: true });
+    // 1. Setup Bundled Media Engines (FFmpeg, FFprobe, ExifTool)
+    reportProgress('Setting up media engines (FFmpeg, ExifTool)...', 0.2);
+    const bundledWinBin = app.isPackaged 
+      ? path.join(process.resourcesPath, 'bin', 'win') 
+      : path.join(__dirname, 'bin', 'win');
 
-    // 2. Setup ExifTool (Bundled)
-    reportProgress('Setting up ExifTool...', 0.5);
-    const bundledExifTool = app.isPackaged 
-      ? path.join(process.resourcesPath, 'bin', 'win', 'exiftool.exe') 
-      : path.join(__dirname, 'bin', 'win', 'exiftool.exe');
+    const bundledFfmpeg = path.join(bundledWinBin, 'ffmpeg.exe');
+    const bundledFfprobe = path.join(bundledWinBin, 'ffprobe.exe');
+    const bundledExifTool = path.join(bundledWinBin, 'exiftool.exe');
+
+    if (fs.existsSync(bundledFfmpeg)) {
+      fs.copyFileSync(bundledFfmpeg, path.join(binDir, 'ffmpeg.exe'));
+    }
+    if (fs.existsSync(bundledFfprobe)) {
+      fs.copyFileSync(bundledFfprobe, path.join(binDir, 'ffprobe.exe'));
+    }
     if (fs.existsSync(bundledExifTool)) {
-        fs.copyFileSync(bundledExifTool, path.join(binDir, 'exiftool.exe'));
-    } else {
-        throw new Error("Bundled ExifTool executable not found in resources.");
+      fs.copyFileSync(bundledExifTool, path.join(binDir, 'exiftool.exe'));
     }
 
     // 3. Download YOLO Model

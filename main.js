@@ -25,26 +25,22 @@ ipcMain.on("cancel-task", () => {
 // ==========================================
 // HELPERS
 // ==========================================
-function getExiftoolPath() {
-  const isWin = process.platform === "win32";
-  const executableName = isWin ? "exiftool.exe" : "exiftool";
-  if (isWin) {
-    return app.isPackaged ? path.join(process.resourcesPath, "bin", "win", "exiftool.exe") : path.join(__dirname, "bin", "win", "exiftool.exe");
-  }
-  let platformFolder = process.platform === "darwin" ? "mac" : "linux";
-  const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
-  return path.join(baseDir, "bin", platformFolder, executableName);
-}
-
 function getBundledBinaryPath(binaryName) {
   const isWin = process.platform === "win32";
   const executableName = isWin ? `${binaryName}.exe` : binaryName;
-  if (isWin) {
-    return path.join(app.getPath("userData"), "bin", executableName);
-  }
-  let platformFolder = process.platform === "darwin" ? "mac" : "linux";
+  const platformFolder = isWin ? "win" : (process.platform === "darwin" ? "mac" : "linux");
   const baseDir = app.isPackaged ? process.resourcesPath : __dirname;
-  return path.join(baseDir, "bin", platformFolder, executableName);
+  const bundledPath = path.join(baseDir, "bin", platformFolder, executableName);
+  
+  if (fs.existsSync(bundledPath)) {
+    return bundledPath;
+  }
+  // Fallback to userData/bin if needed
+  return path.join(app.getPath("userData"), "bin", executableName);
+}
+
+function getExiftoolPath() {
+  return getBundledBinaryPath("exiftool");
 }
 
 function normalizeExtension(filePath) {
