@@ -24,9 +24,12 @@ export function initVideoEditor() {
   });
 
   setupBulkMuteLogic();
+  setupBulkExtractFrameLogic();
 }
 
 let bulkMuteFilesList = [];
+let bulkFrameFilesList = [];
+let bulkFrameSourceFolder = null;
 
 function setupBulkMuteLogic() {
   document.getElementById("bulk-mute-files-opt").addEventListener("click", async () => {
@@ -73,6 +76,7 @@ function setupBulkMuteLogic() {
     const progressPercent = document.getElementById("progress-percent");
     const progressCount = document.getElementById("progress-count");
     const progressDetail = document.getElementById("progress-detail");
+    const cancelBtn = document.getElementById("cancel-progress-btn");
     
     progressModal.classList.add("active");
     progressTitle.textContent = "Muting Videos";
@@ -80,17 +84,32 @@ function setupBulkMuteLogic() {
     progressPercent.textContent = "0%";
     progressCount.textContent = `0 / ${selectedFiles.length}`;
     progressDetail.textContent = "Starting...";
+    if (cancelBtn) cancelBtn.style.display = "inline-flex";
 
     const res = await window.electronAPI.bulkMuteVideos({ files: selectedFiles });
     
-    progressModal.classList.remove("active");
-    
     if (res.error) {
-      alert("Error: " + res.error);
+      progressTitle.textContent = "Muting Failed";
+      progressDetail.textContent = res.error;
+      if (cancelBtn) cancelBtn.style.display = "none";
+      setTimeout(() => {
+        progressModal.classList.remove("active");
+        if (cancelBtn) cancelBtn.style.display = "inline-flex";
+      }, 2500);
     } else {
-      alert("Successfully muted " + res.results.filter(r => r.success).length + " videos.");
-      // go back to empty state
-      document.getElementById("cancel-bulk-mute-btn").click();
+      const successCount = res.results ? res.results.filter(r => r.success).length : 0;
+      progressTitle.textContent = "Process Complete";
+      progressFill.style.width = "100%";
+      progressPercent.textContent = "100%";
+      progressCount.textContent = `${successCount} / ${selectedFiles.length}`;
+      progressDetail.textContent = `Successfully muted ${successCount} video(s).`;
+      if (cancelBtn) cancelBtn.style.display = "none";
+      
+      setTimeout(() => {
+        progressModal.classList.remove("active");
+        if (cancelBtn) cancelBtn.style.display = "inline-flex";
+        document.getElementById("cancel-bulk-mute-btn").click();
+      }, 1600);
     }
   });
 }
@@ -98,6 +117,7 @@ function setupBulkMuteLogic() {
 function showBulkMuteContainer() {
   document.getElementById("video-empty-state").style.display = "none";
   document.getElementById("video-preview-container").style.display = "none";
+  document.getElementById("video-bulk-frame-container").style.display = "none";
   document.getElementById("video-bulk-mute-container").style.display = "flex";
   
   document.getElementById("bulk-mute-count").textContent = `${bulkMuteFilesList.length} video(s) selected`;
@@ -155,10 +175,164 @@ function showBulkMuteContainer() {
   });
 }
 
+function setupBulkExtractFrameLogic() {
+  document.getElementById("bulk-frame-files-opt").addEventListener("click", async () => {
+    const result = await window.electronAPI.selectFilesDialog();
+    if (!result.canceled && result.filePaths.length > 0) {
+      bulkFrameSourceFolder = null;
+      bulkFrameFilesList = result.filePaths.filter(p => {
+        const ext = p.split('.').pop().toLowerCase();
+        return videoExtensions.includes(ext);
+      });
+      showBulkFrameContainer();
+    }
+  });
+
+  document.getElementById("bulk-frame-folder-opt").addEventListener("click", async () => {
+    const result = await window.electronAPI.selectFolderDialog();
+    if (!result.canceled && result.filePaths.length > 0) {
+      const folderPath = result.filePaths[0];
+      bulkFrameSourceFolder = folderPath;
+      const entries = await window.electronAPI.readDirectoryRecursive(folderPath);
+      if (!entries.error) {
+        bulkFrameFilesList = entries
+          .filter(e => !e.isDirectory && videoExtensions.includes(e.extension))
+          .map(e => e.path);
+        showBulkFrameContainer();
+      }
+    }
+  });
+
+  document.getElementById("cancel-bulk-frame-btn").addEventListener("click", () => {
+    bulkFrameFilesList = [];
+    bulkFrameSourceFolder = null;
+    document.getElementById("video-bulk-frame-container").style.display = "none";
+    document.getElementById("video-empty-state").style.display = "flex";
+  });
+
+  document.getElementById("perform-bulk-frame-btn").addEventListener("click", async () => {
+    const checkboxes = document.querySelectorAll('.bulk-frame-cb:checked');
+    const selectedFiles = Array.from(checkboxes).map(cb => cb.dataset.path);
+    if (selectedFiles.length === 0) return;
+
+    const frameNumberInput = document.getElementById("bulk-frame-number-input");
+    const frameNum = Math.max(1, parseInt(frameNumberInput?.value, 10) || 1);
+    
+    // Show progress modal
+    const progressModal = document.getElementById("progress-modal");
+    const progressTitle = document.getElementById("progress-title");
+    const progressFill = document.getElementById("progress-fill");
+    const progressPercent = document.getElementById("progress-percent");
+    const progressCount = document.getElementById("progress-count");
+    const progressDetail = document.getElementById("progress-detail");
+    const cancelBtn = document.getElementById("cancel-progress-btn");
+    
+    progressModal.classList.add("active");
+    progressTitle.textContent = "Extracting Frames";
+    progressFill.style.width = "0%";
+    progressPercent.textContent = "0%";
+    progressCount.textContent = `0 / ${selectedFiles.length}`;
+    progressDetail.textContent = "Starting...";
+    if (cancelBtn) cancelBtn.style.display = "inline-flex";
+
+    const res = await window.electronAPI.bulkExtractFrame({
+      files: selectedFiles,
+      frameNumber: frameNum,
+      sourceFolder: bulkFrameSourceFolder
+    });
+    
+    if (res.error) {
+      progressTitle.textContent = "Extraction Failed";
+      progressDetail.textContent = res.error;
+      if (cancelBtn) cancelBtn.style.display = "none";
+      setTimeout(() => {
+        progressModal.classList.remove("active");
+        if (cancelBtn) cancelBtn.style.display = "inline-flex";
+      }, 2500);
+    } else {
+      const successCount = res.results ? res.results.filter(r => r.success).length : 0;
+      progressTitle.textContent = "Process Complete";
+      progressFill.style.width = "100%";
+      progressPercent.textContent = "100%";
+      progressCount.textContent = `${successCount} / ${selectedFiles.length}`;
+      progressDetail.textContent = `Successfully extracted frame ${frameNum} for all ${successCount} video(s).`;
+      if (cancelBtn) cancelBtn.style.display = "none";
+      
+      setTimeout(() => {
+        progressModal.classList.remove("active");
+        if (cancelBtn) cancelBtn.style.display = "inline-flex";
+        document.getElementById("cancel-bulk-frame-btn").click();
+      }, 1600);
+    }
+  });
+}
+
+function showBulkFrameContainer() {
+  document.getElementById("video-empty-state").style.display = "none";
+  document.getElementById("video-preview-container").style.display = "none";
+  document.getElementById("video-bulk-mute-container").style.display = "none";
+  document.getElementById("video-bulk-frame-container").style.display = "flex";
+  
+  document.getElementById("bulk-frame-count").textContent = `${bulkFrameFilesList.length} video(s) selected`;
+  
+  const listEl = document.getElementById("bulk-frame-list");
+  listEl.innerHTML = "";
+  
+  if (bulkFrameFilesList.length === 0) {
+    listEl.innerHTML = "<div style='color: var(--text-muted); padding: 10px;'>No valid video files found in the selection.</div>";
+    document.getElementById("perform-bulk-frame-btn").disabled = true;
+    return;
+  }
+  
+  document.getElementById("perform-bulk-frame-btn").disabled = false;
+  
+  bulkFrameFilesList.forEach(path => {
+    const item = document.createElement("label");
+    item.style.padding = "8px";
+    item.style.borderBottom = "1px solid var(--border-color)";
+    item.style.fontSize = "13px";
+    item.style.wordBreak = "break-all";
+    item.style.display = "flex";
+    item.style.alignItems = "center";
+    item.style.gap = "10px";
+    item.style.cursor = "pointer";
+    item.style.transition = "background 0.2s";
+    
+    item.addEventListener("mouseenter", () => item.style.background = "var(--bg-hover)");
+    item.addEventListener("mouseleave", () => item.style.background = "transparent");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.className = "bulk-frame-cb";
+    cb.dataset.path = path;
+    cb.style.cursor = "pointer";
+    cb.style.width = "14px";
+    cb.style.height = "14px";
+    cb.style.accentColor = "var(--gts-teal)";
+    cb.style.margin = "0";
+    
+    cb.addEventListener("change", () => {
+       const selectedCount = document.querySelectorAll('.bulk-frame-cb:checked').length;
+       document.getElementById("bulk-frame-count").textContent = `${selectedCount} video(s) selected`;
+       document.getElementById("perform-bulk-frame-btn").disabled = selectedCount === 0;
+    });
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = path;
+    labelSpan.style.flex = "1";
+
+    item.appendChild(cb);
+    item.appendChild(labelSpan);
+    listEl.appendChild(item);
+  });
+}
+
 export async function loadVideoEditorFolder(path) {
   document.getElementById("video-folder-input").value = path;
   document.getElementById("video-empty-state").style.display = "flex";
   document.getElementById("video-bulk-mute-container").style.display = "none";
+  document.getElementById("video-bulk-frame-container").style.display = "none";
   document.getElementById("video-preview-container").style.display = "none";
   currentSelectedVideoPath = null;
   currentSelectedVideoExtension = null;
@@ -242,6 +416,7 @@ async function renderVideoEditorDirectory(path, containerElement) {
         
         document.getElementById("video-empty-state").style.display = "none";
         document.getElementById("video-bulk-mute-container").style.display = "none";
+        document.getElementById("video-bulk-frame-container").style.display = "none";
         const previewContainer = document.getElementById("video-preview-container");
         previewContainer.style.display = "flex";
         
@@ -604,43 +779,8 @@ let currentFilePath = null;
       
       const autoRedactBtn = document.getElementById("btn-auto-redact-video");
       if (autoRedactBtn) {
-        autoRedactBtn.addEventListener("click", async () => {
-          if (!currentFilePath) {
-            alert("No video file selected.");
-            return;
-          }
-          
-          const originalContent = autoRedactBtn.innerHTML;
-          autoRedactBtn.disabled = true;
-          autoRedactBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px; animation: spin 1s linear infinite;">sync</span> Redacting...';
-          
-          if (typeof window.showProgress === "function") {
-            window.showProgress("Auto Redacting Faces");
-          } else {
-            showToast("Starting Auto Face Redaction...");
-          }
-          
-          try {
-            const result = await window.electronAPI.runYoloVideoRedact(currentFilePath, "blur", "faces");
-            
-            if (result.error) {
-              showToast("Redaction Error: " + result.error);
-            } else if (result.success && result.outputPath) {
-              currentFilePath = result.outputPath;
-              video.src = currentFilePath;
-              video.load();
-              enableSave();
-              showToast("Auto Face Redaction Complete!");
-            }
-          } catch (e) {
-            showToast("Error: " + e.message);
-          } finally {
-            if (typeof window.hideProgress === "function") {
-              window.hideProgress();
-            }
-            autoRedactBtn.disabled = false;
-            autoRedactBtn.innerHTML = originalContent;
-          }
+        autoRedactBtn.addEventListener("click", () => {
+          showToast("Auto Face Redaction is currently under construction. Stay tuned!");
         });
       }
 

@@ -48,6 +48,14 @@
       {
         "from": "yolov8n.pt",
         "to": "yolov8n.pt"
+      },
+      {
+        "from": "haarcascade_frontalface_default.xml",
+        "to": "haarcascade_frontalface_default.xml"
+      },
+      {
+        "from": "haarcascade_russian_plate_number.xml",
+        "to": "haarcascade_russian_plate_number.xml"
       }
     ]
   },

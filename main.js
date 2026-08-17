@@ -770,19 +770,23 @@ ipcMain.on("open-image-editor-window", (event, payload) => {
 });
 
 ipcMain.handle("save-image", async (event, { dataUrl, originalPath, replace }) => {
-  const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-  const buffer = Buffer.from(base64Data, "base64");
-  
-  if (replace) {
-    fs.writeFileSync(originalPath, buffer);
-    return originalPath;
-  } else {
-    const ext = path.extname(originalPath);
-    const basename = path.basename(originalPath, ext);
-    const dir = path.dirname(originalPath);
-    const newPath = path.join(dir, `${basename}_edited${ext}`);
-    fs.writeFileSync(newPath, buffer);
-    return newPath;
+  try {
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+    
+    if (replace) {
+      fs.writeFileSync(originalPath, buffer);
+      return { success: true, path: originalPath };
+    } else {
+      const ext = path.extname(originalPath);
+      const basename = path.basename(originalPath, ext);
+      const dir = path.dirname(originalPath);
+      const newPath = path.join(dir, `${basename}_edited${ext}`);
+      fs.writeFileSync(newPath, buffer);
+      return { success: true, path: newPath };
+    }
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 });
 
@@ -804,8 +808,11 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
     const scriptPath = process.platform === "win32"
       ? path.join(app.getPath("userData"), "yolo", "yolo_redact.py")
       : path.join(baseDir, "yolo_redact.py");
-    
-    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}"`, (error, stdout, stderr) => {
+    const modelPath = process.platform === "win32"
+      ? path.join(app.getPath("userData"), "yolo", "yolov8n.pt")
+      : path.join(baseDir, "yolov8n.pt");
+
+    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}" "${modelPath}"`, (error, stdout, stderr) => {
       try {
         if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
       } catch (e) {}
@@ -850,9 +857,12 @@ ipcMain.handle("run-yolo-video-redact", async (event, inputFilePath, mode = "blu
     const scriptPath = process.platform === "win32"
       ? path.join(app.getPath("userData"), "yolo", "yolo_redact.py")
       : path.join(baseDir, "yolo_redact.py");
-    
+    const modelPath = process.platform === "win32"
+      ? path.join(app.getPath("userData"), "yolo", "yolov8n.pt")
+      : path.join(baseDir, "yolov8n.pt");
+
     const { spawn } = require("child_process");
-    const child = spawn(pythonPath, [scriptPath, inputFilePath, tempNoAudio, mode, target], {
+    const child = spawn(pythonPath, [scriptPath, inputFilePath, tempNoAudio, mode, target, modelPath], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" }
     });
     
@@ -1193,3 +1203,103 @@ ipcMain.handle("bulk-mute-videos", async (event, payload) => {
   
   return { success: true, results };
 });
+
+ipcMain.handle("bulk-extract-frame", async (event, payload) => {
+  cancelCurrentTask = false;
+  activeChildProcesses.clear();
+  const files = Array.isArray(payload?.files) ? payload.files : [];
+  if (files.length === 0) return { error: "No files to extract frame from." };
+
+  const frameNumber = Math.max(1, parseInt(payload?.frameNumber, 10) || 1);
+  const frameIdx = frameNumber - 1;
+
+  const ffmpegPath = getBundledBinaryPath("ffmpeg");
+  if (!fs.existsSync(ffmpegPath)) return { error: "Bundled FFmpeg binary not found." };
+
+  // Determine single output directory outside the input folder
+  let outputDir;
+  if (payload?.sourceFolder && typeof payload.sourceFolder === "string" && payload.sourceFolder.trim()) {
+    const trimmedSource = payload.sourceFolder.trim().replace(/[/\\]+$/, "");
+    const parsedSource = path.parse(trimmedSource);
+    outputDir = path.join(parsedSource.dir, `${parsedSource.base}_Extracted_Frames`);
+  } else {
+    const firstDir = path.dirname(files[0]);
+    outputDir = path.join(firstDir, "Extracted_Frames");
+  }
+
+  try {
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+  } catch (err) {
+    return { error: `Failed to create output folder: ${err.message}` };
+  }
+
+  const results = [];
+  const generatedFiles = [];
+
+  for (let i = 0; i < files.length; i++) {
+    if (cancelCurrentTask) break;
+
+    const filePath = files[i];
+    if (!fs.existsSync(filePath)) {
+      results.push({ inputPath: filePath, error: "File not found." });
+      continue;
+    }
+
+    const parsed = path.parse(filePath);
+    let fileName = `${parsed.name}_frame_${frameNumber}.png`;
+    let outputPath = path.join(outputDir, fileName);
+
+    let counter = 2;
+    while (fs.existsSync(outputPath) || generatedFiles.includes(outputPath)) {
+      fileName = `${parsed.name}_frame_${frameNumber}_${counter}.png`;
+      outputPath = path.join(outputDir, fileName);
+      counter++;
+    }
+    generatedFiles.push(outputPath);
+
+    event.sender.send("task-progress", {
+      title: "Extracting Frames",
+      current: i,
+      total: files.length,
+      detail: `Extracting frame ${frameNumber}: ${parsed.base}`
+    });
+
+    const args = [
+      "-y",
+      "-hide_banner",
+      "-i", filePath,
+      "-vf", `select=gte(n\\,${frameIdx})`,
+      "-vframes", "1",
+      "-update", "1",
+      outputPath
+    ];
+
+    const result = await new Promise((resolve) => {
+      const child = execFile(ffmpegPath, args, (error, stdout, stderr) => {
+        activeChildProcesses.delete(child);
+        if (error && error.killed) resolve({ inputPath: filePath, outputPath, error: "Cancelled" });
+        else if (error) resolve({ inputPath: filePath, outputPath, error: stderr || error.message });
+        else resolve({ inputPath: filePath, outputPath, success: true });
+      });
+      activeChildProcesses.add(child);
+    });
+    results.push(result);
+  }
+
+  if (cancelCurrentTask) {
+    await new Promise(r => setTimeout(r, 600));
+    for (const file of generatedFiles) {
+      try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch(e) {}
+    }
+    return { error: "Task cancelled by user. Generated files were removed." };
+  }
+
+  const failed = results.filter(r => r.error);
+  if (failed.length > 0) return { error: `${failed.length} file(s) failed to extract frame.`, results, outputDir };
+
+  return { success: true, results, outputDir };
+});
+
+

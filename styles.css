@@ -182,6 +182,8 @@ body[data-mode="settings"] #settings-workspace {
 }
 
 .app-launcher {
+    position: relative;
+    overflow: hidden;
     width: 100%;
     min-height: 100vh;
     display: flex;
@@ -191,7 +193,18 @@ body[data-mode="settings"] #settings-workspace {
     box-sizing: border-box;
 }
 
+.launcher-particle-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
 .launcher-shell {
+    position: relative;
+    z-index: 2;
     width: min(860px, 100%);
 }
 

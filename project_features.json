@@ -61,6 +61,7 @@
         "Precise Video Trimming (trimStart & trimEnd inputs with video time markers)",
         "Visual Video Crop (Cropper.js overlay; automatically enforces even output width/height for FFmpeg libx264 compatibility)",
         "Audio Muting (Single video mute toggle & Bulk Mute feature via #dd-bulk-mute for selected files/folders)",
+        "Bulk Frame Extraction (Extract specific frame number across selected files/folders into dedicated named folders via #dd-bulk-frame)",
         "Video Blur Overlay (Full video blur or timeframe-specific blur with start/end duration inputs)",
         "Dynamic FFmpeg Boxblur Engine (Automatically calculates luma & chroma radii based on crop box dimensions to prevent FFmpeg crashes on small selections)",
         "Live Blur Preview (Real-time HTML/CSS overlay with backdrop-filter: blur(15px) positioned over video player, tracking video playback timestamp & zoom)",
@@ -86,7 +87,9 @@
       "save-video: Executes FFmpeg filter complex pipelines for trim, crop, blur, mute, and save",
       "strip-metadata: Calls ExifTool binary for single/batch metadata removal",
       "convert-file: Spawns FFmpeg for format conversions",
-      "yolo-redact: Spawns Python process running yolo_redact.py for AI redaction"
+      "yolo-redact: Spawns Python process running yolo_redact.py for AI redaction",
+      "bulk-mute-videos: Strips audio tracks across multiple selected videos",
+      "bulk-extract-frame: Extracts a specific frame number from multiple videos into dedicated folders"
     ]
   },
   "file_structure": {

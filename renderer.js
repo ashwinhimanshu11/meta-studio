@@ -4,10 +4,12 @@ import { initConverter, loadConverterFolder } from "./js/converter.js";
 import { initMetadata, loadRootDirectory } from "./js/metadata.js";
 import { initEditor, loadEditorFolder } from "./js/editor.js";
 import { initVideoEditor, loadVideoEditorFolder } from "./js/video-editor.js";
+import { initParticles } from "./js/particles.js";
 
 // Initialize all the isolated modules
 initProgress();
 initUI();
+initParticles();
 initConverter();
 initMetadata();
 initEditor();

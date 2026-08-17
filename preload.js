@@ -47,4 +47,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   selectFilesDialog: (options) => ipcRenderer.invoke("select-files-dialog", options),
   selectFolderDialog: (options) => ipcRenderer.invoke("select-folder-dialog", options),
   bulkMuteVideos: (payload) => ipcRenderer.invoke("bulk-mute-videos", payload),
+  bulkExtractFrame: (payload) => ipcRenderer.invoke("bulk-extract-frame", payload),
 });

@@ -199,6 +199,7 @@ let currentFilePath = null;
       let cropper = null;
       
       let isCroppingMode = false;
+      let isManualRedactMode = false;
       let a4Mode = null;
       let baseRotation = 0;
       let straightenAngle = 0;
@@ -332,6 +333,12 @@ let currentFilePath = null;
         if (!cropper) return;
         
         if (!isCroppingMode) {
+          if (isManualRedactMode) {
+            isManualRedactMode = false;
+            document.getElementById("btn-manual-redact").style.display = "flex";
+            document.getElementById("btn-redact-apply").style.display = "none";
+            document.getElementById("btn-redact-cancel").style.display = "none";
+          }
           // Enter crop mode
           isCroppingMode = true;
           document.getElementById("crop-text").textContent = "Apply Crop";
@@ -339,16 +346,17 @@ let currentFilePath = null;
           document.getElementById("btn-a4-portrait").style.display = "flex";
           document.getElementById("btn-a4-landscape").style.display = "flex";
           
-          // Re-init cropper to properly render grid lines and corners
+          // Re-init cropper without default crop box so user draws it initially
           cropper.destroy();
           const image = document.getElementById('editor-preview-img');
           cropper = new Cropper(image, {
             viewMode: 2,
             dragMode: 'crop', 
-            autoCropArea: 1,
+            autoCrop: false,
+            restore: false,
             guides: true,
             center: true,
-            highlight: false,
+            highlight: true,
             cropBoxMovable: true,
             cropBoxResizable: true,
             toggleDragModeOnDblclick: false,
@@ -361,6 +369,10 @@ let currentFilePath = null;
           });
         } else {
           // Apply the crop
+          if (!cropper.cropped) {
+            showToast("Please drag on the image to draw a crop box first.");
+            return;
+          }
           const canvas = cropper.getCroppedCanvas();
           if (!canvas) return;
           
@@ -448,147 +460,150 @@ let currentFilePath = null;
         setA4Mode("landscape");
       });
 
-      document.getElementById("btn-redact").addEventListener("click", async () => {
-        const btn = document.getElementById("btn-redact");
-        if (!cropper || btn.disabled) return;
-        
-        btn.disabled = true;
-        const icon = document.getElementById("redact-icon");
-        const text = document.getElementById("redact-text");
-        icon.textContent = "sync";
-        icon.classList.add("spinning");
-        text.textContent = "YOLO Scanning...";
-        
-        try {
-          const canvas = cropper.getCroppedCanvas();
-          if (!canvas) throw new Error("Canvas error");
-          
-          const mode = document.getElementById("redact-mode").value;
-          const target = document.getElementById("redact-target").value;
-          const dataUrl = canvas.toDataURL("image/png");
-          const result = await window.electronAPI.runYoloRedact(dataUrl, mode, target);
-          
-          if (result.success && result.boxes && result.boxes.length > 0) {
-            window.pendingRedactCanvas = canvas;
-            window.pendingRedactBoxes = result.boxes;
-            
-            document.querySelector(".cropper-container").style.display = "none";
-            const reviewContainer = document.getElementById("redact-review-container");
-            const reviewImg = document.getElementById("redact-review-img");
-            const boxesContainer = document.getElementById("redact-boxes-container");
-            
-            reviewImg.src = dataUrl;
-            reviewContainer.style.display = "inline-block";
-            
-            reviewImg.onload = () => {
-              boxesContainer.innerHTML = "";
-              // Use naturalWidth to get the true image pixel dimensions after the
-              // browser has decoded the dataUrl, avoiding DPI/devicePixelRatio issues.
-              const scaleX = reviewImg.clientWidth / reviewImg.naturalWidth;
-              const scaleY = reviewImg.clientHeight / reviewImg.naturalHeight;
-              
-              result.boxes.forEach((box, i) => {
-                const boxDiv = document.createElement("div");
-                boxDiv.style.position = "absolute";
-                boxDiv.style.left = (box.x * scaleX) + "px";
-                boxDiv.style.top = (box.y * scaleY) + "px";
-                boxDiv.style.width = (box.w * scaleX) + "px";
-                boxDiv.style.height = (box.h * scaleY) + "px";
-                
-                if (mode === "white") boxDiv.style.background = "white";
-                else if (mode === "blur") boxDiv.style.backdropFilter = "blur(10px)";
-                else boxDiv.style.background = "black";
-                
-                boxDiv.style.border = "2px dashed red";
-                
-                let isDragging = false;
-                let startX, startY;
-                let initialLeft, initialTop;
-                
-                boxDiv.style.cursor = 'move';
-                
-                boxDiv.onmousedown = (e) => {
-                  if (e.target === closeBtn) return;
-                  isDragging = true;
-                  startX = e.clientX;
-                  startY = e.clientY;
-                  initialLeft = parseFloat(boxDiv.style.left);
-                  initialTop = parseFloat(boxDiv.style.top);
-                  e.preventDefault();
-                };
-                
-                document.addEventListener('mousemove', (e) => {
-                  if (!isDragging) return;
-                  const dx = e.clientX - startX;
-                  const dy = e.clientY - startY;
-                  let newLeft = initialLeft + dx;
-                  let newTop = initialTop + dy;
-                  
-                  // constrain to image bounds
-                  newLeft = Math.max(0, Math.min(newLeft, reviewImg.clientWidth - boxDiv.offsetWidth));
-                  newTop = Math.max(0, Math.min(newTop, reviewImg.clientHeight - boxDiv.offsetHeight));
-                  
-                  boxDiv.style.left = newLeft + 'px';
-                  boxDiv.style.top = newTop + 'px';
-                  
-                  // Update underlying box coordinates
-                  window.pendingRedactBoxes[i].x = newLeft / scaleX;
-                  window.pendingRedactBoxes[i].y = newTop / scaleY;
-                });
-                
-                document.addEventListener('mouseup', () => {
-                  isDragging = false;
-                });
-                
-                const closeBtn = document.createElement("button");
-                closeBtn.innerHTML = "×";
-                closeBtn.style.position = "absolute";
-                closeBtn.style.top = "-10px";
-                closeBtn.style.right = "-10px";
-                closeBtn.style.background = "red";
-                closeBtn.style.color = "white";
-                closeBtn.style.border = "none";
-                closeBtn.style.borderRadius = "50%";
-                closeBtn.style.width = "20px";
-                closeBtn.style.height = "20px";
-                closeBtn.style.cursor = "pointer";
-                closeBtn.style.display = "flex";
-                closeBtn.style.alignItems = "center";
-                closeBtn.style.justifyContent = "center";
-                closeBtn.style.fontWeight = "bold";
-                
-                closeBtn.onclick = () => {
-                  boxDiv.remove();
-                  window.pendingRedactBoxes[i] = null;
-                };
-                
-                boxDiv.appendChild(closeBtn);
-                boxesContainer.appendChild(boxDiv);
-              });
-            };
-            
-            document.getElementById("btn-redact").style.display = "none";
-            document.getElementById("btn-redact-apply").style.display = "flex";
-            document.getElementById("btn-redact-cancel").style.display = "flex";
-            setDropdownsDisabled(true);
-            
-            
-            showToast(`Found ${result.boxes.length} sensitive areas. Review and apply.`);
-          } else if (result.success) {
-            showToast("No sensitive areas found by YOLO.");
-          } else {
-            console.error(result.error);
-            showToast("YOLO Error: " + result.error);
-          }
-        } catch (err) {
-          console.error(err);
-          showToast("Error during YOLO redaction.");
-        } finally {
-          btn.disabled = false;
-          icon.textContent = "blur_on";
-          icon.classList.remove("spinning");
-          text.textContent = "Auto-Redact";
+      function exitManualRedactMode() {
+        if (!isManualRedactMode) return;
+        isManualRedactMode = false;
+        document.getElementById("btn-manual-redact").style.display = "flex";
+        document.getElementById("btn-redact-apply").style.display = "none";
+        document.getElementById("btn-redact-cancel").style.display = "none";
+
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
         }
+
+        const image = document.getElementById("editor-preview-img");
+        if (image && image.src) {
+          cropper = new Cropper(image, {
+            viewMode: 2,
+            dragMode: "move",
+            autoCrop: false,
+            guides: false,
+            center: false,
+            cropBoxMovable: false,
+            cropBoxResizable: false,
+            toggleDragModeOnDblclick: false,
+            wheelZoomRatio: 0.1,
+          });
+        }
+      }
+
+      function enterManualRedactMode() {
+        if (!cropper) return;
+        if (isCroppingMode) {
+          isCroppingMode = false;
+          document.getElementById("crop-text").textContent = "Crop";
+          document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
+        }
+
+        isManualRedactMode = true;
+        document.getElementById("btn-manual-redact").style.display = "none";
+        document.getElementById("btn-redact-apply").style.display = "flex";
+        document.getElementById("btn-redact-cancel").style.display = "flex";
+
+        cropper.destroy();
+        const image = document.getElementById("editor-preview-img");
+        cropper = new Cropper(image, {
+          viewMode: 2,
+          dragMode: "crop",
+          autoCrop: true,
+          autoCropArea: 0.35,
+          guides: true,
+          center: true,
+          highlight: true,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+          wheelZoomRatio: 0.1,
+        });
+      }
+
+      document.getElementById("btn-manual-redact").addEventListener("click", () => {
+        enterManualRedactMode();
+      });
+
+      document.getElementById("btn-redact-cancel").addEventListener("click", () => {
+        exitManualRedactMode();
+      });
+
+      document.getElementById("btn-redact-apply").addEventListener("click", () => {
+        if (!cropper || !isManualRedactMode) return;
+
+        const cropData = cropper.getData(true);
+        if (!cropData || cropData.width <= 0 || cropData.height <= 0) {
+          showToast("Please drag or resize the selection box over the area to redact.");
+          return;
+        }
+
+        const image = document.getElementById("editor-preview-img");
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0);
+
+        const mode = document.getElementById("redact-mode").value || "blur";
+        const rx = Math.max(0, Math.round(cropData.x));
+        const ry = Math.max(0, Math.round(cropData.y));
+        const rw = Math.min(canvas.width - rx, Math.round(cropData.width));
+        const rh = Math.min(canvas.height - ry, Math.round(cropData.height));
+
+        if (rw > 0 && rh > 0) {
+          if (mode === "black") {
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(rx, ry, rw, rh);
+          } else if (mode === "white") {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(rx, ry, rw, rh);
+          } else {
+            // Smooth pixelated box blur
+            const blockSize = Math.max(8, Math.min(rw, rh) / 10);
+            const tw = Math.max(1, Math.round(rw / blockSize));
+            const th = Math.max(1, Math.round(rh / blockSize));
+
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = tw;
+            tempCanvas.height = th;
+            const tempCtx = tempCanvas.getContext("2d");
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.drawImage(canvas, rx, ry, rw, rh, 0, 0, tw, th);
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            ctx.filter = "blur(3px)";
+            ctx.drawImage(tempCanvas, 0, 0, tw, th, rx, ry, rw, rh);
+            ctx.restore();
+          }
+
+          image.src = canvas.toDataURL("image/png");
+          isEdited = true;
+          enableSave();
+
+          image.onload = () => {
+            if (cropper) cropper.destroy();
+            cropper = new Cropper(image, {
+              viewMode: 2,
+              dragMode: "crop",
+              autoCrop: true,
+              autoCropArea: 0.35,
+              guides: true,
+              center: true,
+              highlight: true,
+              cropBoxMovable: true,
+              cropBoxResizable: true,
+              toggleDragModeOnDblclick: false,
+              wheelZoomRatio: 0.1,
+            });
+          };
+
+          showToast("Redaction applied! You can redact another area or click Save.");
+        }
+      });
+
+      document.getElementById("btn-redact").addEventListener("click", () => {
+        showToast("Auto-Redaction is currently under construction. Stay tuned!");
       });
 
       document.getElementById("btn-cancel").addEventListener("click", () => {
@@ -610,6 +625,13 @@ let currentFilePath = null;
           document.getElementById("btn-a4-portrait").style.display = "none";
           document.getElementById("btn-a4-landscape").style.display = "none";
         }
+
+        if (isManualRedactMode) {
+          isManualRedactMode = false;
+          document.getElementById("btn-manual-redact").style.display = "flex";
+          document.getElementById("btn-redact-apply").style.display = "none";
+          document.getElementById("btn-redact-cancel").style.display = "none";
+        }
         
         disableSave();
         
@@ -626,10 +648,29 @@ let currentFilePath = null;
         const originalText = saveBtn.innerHTML;
         saveBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 18px; animation: spin 1s linear infinite;">sync</span> Saving...';
         saveBtn.disabled = true;
-        
-        // Get the final canvas data
-        const canvas = cropper ? cropper.getCroppedCanvas() : null;
-        const dataUrl = canvas ? canvas.toDataURL("image/png") : document.getElementById('editor-preview-img').src;
+
+        if (isManualRedactMode) {
+          exitManualRedactMode();
+        }
+
+        const image = document.getElementById('editor-preview-img');
+        let dataUrl;
+
+        if (isCroppingMode && cropper) {
+          const cropCanvas = cropper.getCroppedCanvas();
+          dataUrl = cropCanvas ? cropCanvas.toDataURL("image/png") : image.src;
+        } else {
+          if (image.src.startsWith("data:image")) {
+            dataUrl = image.src;
+          } else {
+            const canvas = document.createElement("canvas");
+            canvas.width = image.naturalWidth || image.width;
+            canvas.height = image.naturalHeight || image.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0);
+            dataUrl = canvas.toDataURL("image/png");
+          }
+        }
         
         const result = await window.electronAPI.saveImage({
           dataUrl,
@@ -640,84 +681,21 @@ let currentFilePath = null;
         saveBtn.innerHTML = originalText;
         if (!isEdited) saveBtn.disabled = true;
         
-        if (result.success) {
+        if (result && result.success) {
           showToast(`Saved to ${result.path.split(/[/\\]/).pop()}`);
           if (!replace) {
-             // update current file path if saved as new
              currentFilePath = result.path;
              document.getElementById('editor-filename-display').textContent = currentFilePath.split(/[/\\]/).pop();
           }
           
-          // Reset UI
           disableSave();
         } else {
-          showToast(`Error: ${result.error}`);
+          showToast(`Error: ${result && result.error ? result.error : "Failed to save image"}`);
         }
       }
 
       document.getElementById("btn-save-replace").addEventListener("click", () => handleSave(true));
       document.getElementById("btn-save-new").addEventListener("click", () => handleSave(false));
-
-      document.getElementById("btn-redact-cancel").addEventListener("click", () => {
-        document.getElementById("redact-review-container").style.display = "none";
-        document.querySelector(".cropper-container").style.display = "block";
-        document.getElementById("btn-redact").style.display = "flex";
-        document.getElementById("btn-redact-apply").style.display = "none";
-        document.getElementById("btn-redact-cancel").style.display = "none";
-        setDropdownsDisabled(false);
-        
-        
-        
-        const icon = document.getElementById("redact-icon");
-        const text = document.getElementById("redact-text");
-        icon.textContent = "blur_on";
-        icon.classList.remove("spinning");
-        text.textContent = "Auto-Redact";
-        document.getElementById("btn-redact").disabled = false;
-      });
-
-      document.getElementById("btn-redact-apply").addEventListener("click", () => {
-        const ctx = window.pendingRedactCanvas.getContext("2d");
-        const mode = document.getElementById("redact-mode").value;
-        
-        window.pendingRedactBoxes.forEach(box => {
-          if (!box) return;
-          if (mode === "white") {
-            ctx.fillStyle = "white";
-            ctx.fillRect(box.x, box.y, box.w, box.h);
-          } else if (mode === "blur") {
-            ctx.save();
-            ctx.filter = `blur(${Math.max(5, box.w/10)}px)`;
-            ctx.drawImage(window.pendingRedactCanvas, box.x, box.y, box.w, box.h, box.x, box.y, box.w, box.h);
-            ctx.restore();
-          } else {
-            ctx.fillStyle = "black";
-            ctx.fillRect(box.x, box.y, box.w, box.h);
-          }
-        });
-        
-        const finalDataUrl = window.pendingRedactCanvas.toDataURL("image/png");
-        cropper.destroy();
-        document.getElementById('editor-preview-img').src = finalDataUrl;
-        
-        document.getElementById("redact-review-container").style.display = "none";
-        document.getElementById('editor-preview-img').style.display = "block";
-        document.getElementById("btn-redact").style.display = "flex";
-        document.getElementById("btn-redact-apply").style.display = "none";
-        document.getElementById("btn-redact-cancel").style.display = "none";
-        setDropdownsDisabled(false);
-        
-        const icon = document.getElementById("redact-icon");
-        const text = document.getElementById("redact-text");
-        icon.textContent = "blur_on";
-        icon.classList.remove("spinning");
-        text.textContent = "Auto-Redact";
-        document.getElementById("btn-redact").disabled = false;
-        
-        initCropper();
-        enableSave();
-        showToast("Redactions applied successfully.");
-      });
       
     // Custom Dropdown Logic
       function setupDropdown(id, inputId, labelId, iconId) {

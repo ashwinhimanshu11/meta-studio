@@ -112,9 +112,9 @@ def main():
     output_path = sys.argv[2]
     mode = sys.argv[3] if len(sys.argv) > 3 else "black"
     target_type = sys.argv[4] if len(sys.argv) > 4 else "faces"
+    model_path = sys.argv[5] if len(sys.argv) > 5 else 'yolov8n.pt'
     
     os.environ["YOLO_VERBOSE"] = "False"
-    model_path = 'yolov8n.pt'
     
     try:
         model = YOLO(model_path)
