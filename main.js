@@ -789,10 +789,10 @@ ipcMain.handle("save-image", async (event, { dataUrl, originalPath, replace }) =
 const os = require("os");
 const { exec } = require("child_process");
 
-ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target = "faces") => {
+ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "blur", target = "faces") => {
   return new Promise((resolve) => {
-    const tempIn = path.join(os.tmpdir(), `yolo_in_${Date.now()}.png`);
-    const tempOut = path.join(os.tmpdir(), `yolo_out_${Date.now()}.png`);
+    const tempIn = path.join(os.tmpdir(), `redact_in_${Date.now()}.png`);
+    const tempOut = path.join(os.tmpdir(), `redact_out_${Date.now()}.png`);
     
     const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
     fs.writeFileSync(tempIn, base64Data, "base64");
@@ -801,34 +801,44 @@ ipcMain.handle("run-yolo-redact", async (event, dataUrl, mode = "black", target 
     const pythonPath = process.platform === "win32"
       ? path.join(app.getPath("userData"), "yolo", "python", "python.exe")
       : path.join(baseDir, "yolo_venv", "bin", "python");
-    const scriptPath = process.platform === "win32"
+    
+    const insightScript = process.platform === "win32"
+      ? path.join(app.getPath("userData"), "yolo", "insightface_redact.py")
+      : path.join(baseDir, "insightface_redact.py");
+    const yoloScript = process.platform === "win32"
       ? path.join(app.getPath("userData"), "yolo", "yolo_redact.py")
       : path.join(baseDir, "yolo_redact.py");
-    const modelPath = process.platform === "win32"
-      ? path.join(app.getPath("userData"), "yolo", "yolov8n.pt")
-      : path.join(baseDir, "yolov8n.pt");
+    
+    const scriptPath = fs.existsSync(insightScript) ? insightScript : yoloScript;
 
-    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}" "${modelPath}"`, (error, stdout, stderr) => {
+    exec(`"${pythonPath}" "${scriptPath}" "${tempIn}" "${tempOut}" "${mode}" "${target}"`, (error, stdout, stderr) => {
       try {
         if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
       } catch (e) {}
       
       if (error) {
-        fs.writeFileSync(path.join(os.tmpdir(), "yolo_debug.log"), "Error: " + (stderr || error.message));
+        fs.writeFileSync(path.join(os.tmpdir(), "redact_debug.log"), "Error: " + (stderr || error.message));
         resolve({ error: stderr || error.message });
       } else {
         try {
-          fs.writeFileSync(path.join(os.tmpdir(), "yolo_debug.log"), "Stdout: " + stdout);
-          // Extract only the JSON object from stdout to ignore any printed warnings
+          fs.writeFileSync(path.join(os.tmpdir(), "redact_debug.log"), "Stdout: " + stdout);
           const jsonMatch = stdout.match(/\{.*"success".*\}/);
           const resultStr = jsonMatch ? jsonMatch[0] : stdout;
           const result = JSON.parse(resultStr);
           
           if (result.success) {
-            try {
-              if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
-            } catch (e) {}
-            resolve({ success: true, boxes: result.boxes || [] });
+            let outDataUrl = null;
+            if (fs.existsSync(tempOut)) {
+              const outBuffer = fs.readFileSync(tempOut);
+              outDataUrl = `data:image/png;base64,${outBuffer.toString("base64")}`;
+              try { fs.unlinkSync(tempOut); } catch (e) {}
+            }
+            resolve({
+              success: true,
+              count: result.count !== undefined ? result.count : (result.boxes ? result.boxes.length : 0),
+              boxes: result.boxes || [],
+              dataUrl: outDataUrl
+            });
           } else {
             resolve({ error: result.error || "Unknown error" });
           }

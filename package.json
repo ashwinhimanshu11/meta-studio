@@ -46,6 +46,10 @@
         "to": "yolo_redact.py"
       },
       {
+        "from": "insightface_redact.py",
+        "to": "insightface_redact.py"
+      },
+      {
         "from": "yolov8n.pt",
         "to": "yolov8n.pt"
       },

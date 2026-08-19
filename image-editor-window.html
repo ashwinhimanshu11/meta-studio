@@ -307,7 +307,7 @@
         <button id="btn-redact-cancel" class="action-btn" style="display: none;">
           <span class="material-symbols-rounded" style="font-size: 18px;">close</span> <span>Cancel</span>
         </button>
-        <button id="btn-redact" class="action-btn" title="Auto-Redact (Under Construction)">
+        <button id="btn-redact" class="action-btn" title="Auto-Redact Faces (InsightFace AI)">
           <span class="material-symbols-rounded" id="redact-icon" style="font-size: 18px;">blur_on</span> <span id="redact-text">Auto-Redact</span>
         </button>
         <button id="btn-a4-portrait" class="action-btn" title="A4 Portrait" style="display: none;">
@@ -355,7 +355,312 @@
       let baseRotation = 0;
       let straightenAngle = 0;
 
+      let activeRedactionBoxes = [];
+      let unredactedImageSrc = null;
+      let currentRedactionMode = "blur";
+
+      function applyBoxesToCanvas(baseImg, boxes, mode) {
+        const canvas = document.createElement("canvas");
+        canvas.width = baseImg.naturalWidth || baseImg.width;
+        canvas.height = baseImg.naturalHeight || baseImg.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(baseImg, 0, 0);
+
+        boxes.forEach((box) => {
+          const rx = Math.max(0, Math.round(box.x));
+          const ry = Math.max(0, Math.round(box.y));
+          const rw = Math.min(canvas.width - rx, Math.round(box.w));
+          const rh = Math.min(canvas.height - ry, Math.round(box.h));
+
+          if (rw > 0 && rh > 0) {
+            if (mode === "black") {
+              ctx.fillStyle = "#000000";
+              ctx.fillRect(rx, ry, rw, rh);
+            } else if (mode === "white") {
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(rx, ry, rw, rh);
+            } else {
+              // Multi-pass smooth Gaussian + box blur simulation
+              const blockSize = Math.max(8, Math.min(rw, rh) / 10);
+              const tw = Math.max(1, Math.round(rw / blockSize));
+              const th = Math.max(1, Math.round(rh / blockSize));
+
+              const tempCanvas = document.createElement("canvas");
+              tempCanvas.width = tw;
+              tempCanvas.height = th;
+              const tempCtx = tempCanvas.getContext("2d");
+              tempCtx.imageSmoothingEnabled = true;
+              tempCtx.drawImage(canvas, rx, ry, rw, rh, 0, 0, tw, th);
+
+              ctx.save();
+              ctx.imageSmoothingEnabled = false;
+              ctx.filter = "blur(3px)";
+              ctx.drawImage(tempCanvas, 0, 0, tw, th, rx, ry, rw, rh);
+              ctx.restore();
+            }
+          }
+        });
+
+        return canvas;
+      }
+
+      function clearRedactionOverlays() {
+        const existing = document.querySelectorAll(".redact-overlay-container");
+        existing.forEach((el) => el.remove());
+      }
+
+      function syncOverlayPosition() {
+        const overlayContainer = document.querySelector(".redact-overlay-container");
+        if (!overlayContainer || !cropper) return;
+        const canvasData = cropper.getCanvasData();
+        if (!canvasData || !canvasData.width || !canvasData.height) return;
+        overlayContainer.style.left = `${canvasData.left}px`;
+        overlayContainer.style.top = `${canvasData.top}px`;
+        overlayContainer.style.width = `${canvasData.width}px`;
+        overlayContainer.style.height = `${canvasData.height}px`;
+      }
+
+      window.addEventListener("resize", syncOverlayPosition);
+
+      function applyRedactionsToImage() {
+        const image = document.getElementById("editor-image");
+        if (!image || !unredactedImageSrc) return;
+
+        const cleanImg = new Image();
+        cleanImg.crossOrigin = "anonymous";
+        cleanImg.onload = () => {
+          const canvas = applyBoxesToCanvas(cleanImg, activeRedactionBoxes, currentRedactionMode);
+          const dataUrl = canvas.toDataURL("image/png");
+          if (cropper) {
+            cropper.replace(dataUrl, true);
+          } else {
+            image.src = dataUrl;
+          }
+          isEdited = true;
+          enableSave();
+        };
+        cleanImg.src = unredactedImageSrc;
+      }
+
+      function attachBoxDrag(boxEl, box) {
+        let startX = 0;
+        let startY = 0;
+        let origBoxX = box.x;
+        let origBoxY = box.y;
+        let isDragging = false;
+
+        boxEl.addEventListener("mousedown", (e) => {
+          if (e.target.closest(".redact-remove-btn") || e.target.closest(".redact-resize-handle")) {
+            return;
+          }
+          e.stopPropagation();
+          e.preventDefault();
+
+          startX = e.clientX;
+          startY = e.clientY;
+          origBoxX = box.x;
+          origBoxY = box.y;
+          isDragging = true;
+          boxEl.classList.add("dragging");
+
+          const image = document.getElementById("editor-image");
+          const imgW = image.naturalWidth || image.width;
+          const imgH = image.naturalHeight || image.height;
+          const canvasData = cropper ? cropper.getCanvasData() : { width: imgW, height: imgH };
+          const scaleX = canvasData.width / imgW;
+          const scaleY = canvasData.height / imgH;
+
+          function onMouseMove(moveEvent) {
+            if (!isDragging) return;
+            const dx = (moveEvent.clientX - startX) / (scaleX || 1);
+            const dy = (moveEvent.clientY - startY) / (scaleY || 1);
+
+            let newX = Math.round(origBoxX + dx);
+            let newY = Math.round(origBoxY + dy);
+
+            newX = Math.max(0, Math.min(imgW - box.w, newX));
+            newY = Math.max(0, Math.min(imgH - box.h, newY));
+
+            box.x = newX;
+            box.y = newY;
+
+            boxEl.style.left = `${(newX / imgW) * 100}%`;
+            boxEl.style.top = `${(newY / imgH) * 100}%`;
+          }
+
+          function onMouseUp() {
+            if (!isDragging) return;
+            isDragging = false;
+            boxEl.classList.remove("dragging");
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+
+            applyRedactionsToImage();
+          }
+
+          window.addEventListener("mousemove", onMouseMove);
+          window.addEventListener("mouseup", onMouseUp);
+        });
+      }
+
+      function attachBoxResize(handleEl, boxEl, box) {
+        let startX = 0;
+        let startY = 0;
+        let origW = box.w;
+        let origH = box.h;
+        let isResizing = false;
+
+        handleEl.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+
+          startX = e.clientX;
+          startY = e.clientY;
+          origW = box.w;
+          origH = box.h;
+          isResizing = true;
+          boxEl.classList.add("resizing");
+
+          const image = document.getElementById("editor-image");
+          const imgW = image.naturalWidth || image.width;
+          const imgH = image.naturalHeight || image.height;
+          const canvasData = cropper ? cropper.getCanvasData() : { width: imgW, height: imgH };
+          const scaleX = canvasData.width / imgW;
+          const scaleY = canvasData.height / imgH;
+
+          function onMouseMove(moveEvent) {
+            if (!isResizing) return;
+            const dw = (moveEvent.clientX - startX) / (scaleX || 1);
+            const dh = (moveEvent.clientY - startY) / (scaleY || 1);
+
+            let newW = Math.round(origW + dw);
+            let newH = Math.round(origH + dh);
+
+            newW = Math.max(15, Math.min(imgW - box.x, newW));
+            newH = Math.max(15, Math.min(imgH - box.y, newH));
+
+            box.w = newW;
+            box.h = newH;
+
+            boxEl.style.width = `${(newW / imgW) * 100}%`;
+            boxEl.style.height = `${(newH / imgH) * 100}%`;
+          }
+
+          function onMouseUp() {
+            if (!isResizing) return;
+            isResizing = false;
+            boxEl.classList.remove("resizing");
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+
+            applyRedactionsToImage();
+          }
+
+          window.addEventListener("mousemove", onMouseMove);
+          window.addEventListener("mouseup", onMouseUp);
+        });
+      }
+
+      function renderRedactionOverlays() {
+        clearRedactionOverlays();
+        if (!activeRedactionBoxes || activeRedactionBoxes.length === 0) return;
+
+        const image = document.getElementById("editor-image");
+        if (!image) return;
+
+        const cropperContainer = document.querySelector(".cropper-container");
+        if (!cropperContainer || !cropper) return;
+
+        const overlayContainer = document.createElement("div");
+        overlayContainer.className = "redact-overlay-container";
+        cropperContainer.appendChild(overlayContainer);
+
+        syncOverlayPosition();
+
+        const imgW = image.naturalWidth || image.width;
+        const imgH = image.naturalHeight || image.height;
+
+        activeRedactionBoxes.forEach((box) => {
+          const leftPct = (box.x / imgW) * 100;
+          const topPct = (box.y / imgH) * 100;
+          const widthPct = (box.w / imgW) * 100;
+          const heightPct = (box.h / imgH) * 100;
+
+          const boxEl = document.createElement("div");
+          boxEl.className = "redact-box-overlay";
+          boxEl.style.left = `${leftPct}%`;
+          boxEl.style.top = `${topPct}%`;
+          boxEl.style.width = `${widthPct}%`;
+          boxEl.style.height = `${heightPct}%`;
+          boxEl.title = "Drag to move, corner to resize";
+
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "redact-remove-btn";
+          removeBtn.title = "Remove this redaction";
+          removeBtn.innerHTML = '<span class="material-symbols-rounded">close</span>';
+
+          removeBtn.addEventListener("mousedown", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          });
+
+          removeBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            removeRedactionBox(box.id);
+          });
+
+          const resizeHandle = document.createElement("div");
+          resizeHandle.className = "redact-resize-handle";
+          resizeHandle.title = "Drag to resize";
+
+          boxEl.appendChild(removeBtn);
+          boxEl.appendChild(resizeHandle);
+
+          attachBoxDrag(boxEl, box);
+          attachBoxResize(resizeHandle, boxEl, box);
+
+          overlayContainer.appendChild(boxEl);
+        });
+      }
+
+      function removeRedactionBox(boxId) {
+        activeRedactionBoxes = activeRedactionBoxes.filter((b) => b.id !== boxId);
+        const image = document.getElementById("editor-image");
+
+        if (activeRedactionBoxes.length === 0) {
+          clearRedactionOverlays();
+          if (unredactedImageSrc) {
+            if (cropper) {
+              cropper.replace(unredactedImageSrc, true);
+            } else {
+              image.src = unredactedImageSrc;
+            }
+          }
+          showToast("All face redactions removed.");
+        } else {
+          if (unredactedImageSrc) {
+            const cleanImg = new Image();
+            cleanImg.crossOrigin = "anonymous";
+            cleanImg.onload = () => {
+              const canvas = applyBoxesToCanvas(cleanImg, activeRedactionBoxes, currentRedactionMode);
+              const dataUrl = canvas.toDataURL("image/png");
+              if (cropper) {
+                cropper.replace(dataUrl, true);
+              } else {
+                image.src = dataUrl;
+              }
+              renderRedactionOverlays();
+              showToast(`Redaction removed (${activeRedactionBoxes.length} remaining).`);
+            };
+            cleanImg.src = unredactedImageSrc;
+          }
+        }
+      }
+
       function applyRotation() {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         if (!cropper) return;
         const totalAngle = baseRotation + straightenAngle;
         cropper.rotateTo(totalAngle);
@@ -447,6 +752,10 @@
         currentFilePath = payload.filePath;
         document.getElementById("filename-display").textContent = payload.filePath.split(/[/\\]/).pop();
         
+        activeRedactionBoxes = [];
+        unredactedImageSrc = null;
+        clearRedactionOverlays();
+
         const details = await window.electronAPI.getFileDetails(payload.filePath);
         const image = document.getElementById("editor-image");
         if (details.thumbnail) {
@@ -475,12 +784,15 @@
                 splash.style.opacity = '0';
                 setTimeout(() => splash.remove(), 400);
               }
+              renderRedactionOverlays();
             }
           });
         };
       });
 
       document.getElementById("btn-crop").addEventListener("click", () => {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         if (!cropper) return;
         
         if (!isCroppingMode) {
@@ -564,16 +876,22 @@
       });
 
       document.getElementById("straighten-slider").addEventListener("input", (e) => {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         straightenAngle = parseFloat(e.target.value);
         applyRotation();
       });
 
       document.getElementById("btn-rotate-left").addEventListener("click", () => {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         baseRotation -= 90;
         applyRotation();
       });
 
       document.getElementById("btn-rotate-right").addEventListener("click", () => {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         baseRotation += 90;
         applyRotation();
       });
@@ -635,11 +953,14 @@
             cropBoxResizable: false,
             toggleDragModeOnDblclick: false,
             wheelZoomRatio: 0.1,
+            ready() { renderRedactionOverlays(); }
           });
         }
       }
 
       function enterManualRedactMode() {
+        clearRedactionOverlays();
+        activeRedactionBoxes = [];
         if (!cropper) return;
         if (isCroppingMode) {
           isCroppingMode = false;
@@ -689,76 +1010,167 @@
         }
 
         const image = document.getElementById("editor-image");
-        const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0);
-
-        const mode = document.getElementById("redact-mode").value || "blur";
-        const rx = Math.max(0, Math.round(cropData.x));
-        const ry = Math.max(0, Math.round(cropData.y));
-        const rw = Math.min(canvas.width - rx, Math.round(cropData.width));
-        const rh = Math.min(canvas.height - ry, Math.round(cropData.height));
-
-        if (rw > 0 && rh > 0) {
-          if (mode === "black") {
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(rx, ry, rw, rh);
-          } else if (mode === "white") {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(rx, ry, rw, rh);
-          } else {
-            const blockSize = Math.max(8, Math.min(rw, rh) / 10);
-            const tw = Math.max(1, Math.round(rw / blockSize));
-            const th = Math.max(1, Math.round(rh / blockSize));
-
-            const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = tw;
-            tempCanvas.height = th;
-            const tempCtx = tempCanvas.getContext("2d");
-            tempCtx.imageSmoothingEnabled = true;
-            tempCtx.drawImage(canvas, rx, ry, rw, rh, 0, 0, tw, th);
-
-            ctx.save();
-            ctx.imageSmoothingEnabled = false;
-            ctx.filter = "blur(3px)";
-            ctx.drawImage(tempCanvas, 0, 0, tw, th, rx, ry, rw, rh);
-            ctx.restore();
-          }
-
-          image.src = canvas.toDataURL("image/png");
-          isEdited = true;
-          enableSave();
-
-          image.onload = () => {
-            if (cropper) cropper.destroy();
-            cropper = new Cropper(image, {
-              viewMode: 2,
-              dragMode: "crop",
-              autoCrop: true,
-              autoCropArea: 0.35,
-              guides: true,
-              center: true,
-              highlight: true,
-              cropBoxMovable: true,
-              cropBoxResizable: true,
-              toggleDragModeOnDblclick: false,
-              wheelZoomRatio: 0.1,
-            });
-          };
-
-          showToast("Redaction applied! You can redact another area or click Save.");
+        
+        // Add new box
+        const newBox = {
+          id: "box_" + Date.now(),
+          x: cropData.x,
+          y: cropData.y,
+          w: cropData.width,
+          h: cropData.height
+        };
+        activeRedactionBoxes.push(newBox);
+        
+        // If first box, set unredacted source
+        if (!unredactedImageSrc) {
+            const canvas = document.createElement("canvas");
+            canvas.width = image.naturalWidth || image.width;
+            canvas.height = image.naturalHeight || image.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0);
+            unredactedImageSrc = canvas.toDataURL("image/png");
         }
+
+        // Re-render
+        const cleanImg = new Image();
+        cleanImg.onload = () => {
+            const canvas = applyBoxesToCanvas(cleanImg, activeRedactionBoxes, document.getElementById("redact-mode").value || "blur");
+            image.src = canvas.toDataURL("image/png");
+        };
+        cleanImg.src = unredactedImageSrc;
+
+        isEdited = true;
+        enableSave();
+        
+        // Re-init cropper
+        cropper.destroy();
+        cropper = new Cropper(image, {
+          viewMode: 2,
+          dragMode: "crop",
+          autoCrop: true,
+          autoCropArea: 0.35,
+          guides: true,
+          center: true,
+          highlight: true,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+          wheelZoomRatio: 0.1,
+          ready() { renderRedactionOverlays(); }
+        });
+
+        showToast("Redaction added! Click ✕ to remove any.");
       });
 
-      document.getElementById("btn-redact").addEventListener("click", () => {
-        showToast("Auto-Redaction is currently under construction. Stay tuned!");
+      document.getElementById("btn-redact").addEventListener("click", async () => {
+        const image = document.getElementById("editor-image");
+        if (!image || !image.src) {
+          showToast("Please open an image first.");
+          return;
+        }
+
+        if (isManualRedactMode) {
+          exitManualRedactMode();
+        }
+
+        if (isCroppingMode) {
+          isCroppingMode = false;
+          document.getElementById("crop-text").textContent = "Crop";
+          document.getElementById("crop-icon").textContent = "crop";
+          document.getElementById("btn-a4-portrait").style.display = "none";
+          document.getElementById("btn-a4-landscape").style.display = "none";
+        }
+
+        const btn = document.getElementById("btn-redact");
+        const icon = document.getElementById("redact-icon");
+        const text = document.getElementById("redact-text");
+        const origIcon = icon ? icon.textContent : "blur_on";
+        const origText = text ? text.textContent : "Auto-Redact";
+
+        if (btn) btn.disabled = true;
+        if (icon) {
+          icon.textContent = "sync";
+          icon.classList.add("spinning");
+        }
+        if (text) text.textContent = "Scanning Faces...";
+
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth || image.width;
+          canvas.height = image.naturalHeight || image.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(image, 0, 0);
+          const dataUrl = canvas.toDataURL("image/png");
+
+          unredactedImageSrc = dataUrl;
+
+          const mode = document.getElementById("redact-mode").value || "blur";
+          const target = document.getElementById("redact-target").value || "faces";
+          currentRedactionMode = mode;
+
+          const result = await window.electronAPI.runYoloRedact(dataUrl, mode, target);
+
+          if (result && result.success) {
+            const boxes = result.boxes || [];
+            if (result.count > 0 || boxes.length > 0) {
+              activeRedactionBoxes = boxes.map((b, idx) => ({
+                id: "box_" + Date.now() + "_" + idx,
+                x: b.x,
+                y: b.y,
+                w: b.w,
+                h: b.h,
+              }));
+
+              image.src = result.dataUrl || applyBoxesToCanvas(canvas, activeRedactionBoxes, mode).toDataURL("image/png");
+              isEdited = true;
+              enableSave();
+
+              image.onload = () => {
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(image, {
+                  viewMode: 2,
+                  dragMode: "move",
+                  autoCrop: false,
+                  guides: false,
+                  center: false,
+                  cropBoxMovable: false,
+                  cropBoxResizable: false,
+                  toggleDragModeOnDblclick: false,
+                  wheelZoomRatio: 0.1,
+                  ready() {
+                    renderRedactionOverlays();
+                  }
+                });
+              };
+
+              showToast(`InsightFace detected ${activeRedactionBoxes.length} face(s). Click ✕ on any box to remove it.`);
+            } else {
+              activeRedactionBoxes = [];
+              clearRedactionOverlays();
+              showToast("No faces detected in this image.");
+            }
+          } else {
+            showToast(`Auto-Redact Error: ${result && result.error ? result.error : "Detection failed"}`);
+          }
+        } catch (err) {
+          showToast(`Error during auto-redaction: ${err.message}`);
+        } finally {
+          if (btn) btn.disabled = false;
+          if (icon) {
+            icon.textContent = origIcon;
+            icon.classList.remove("spinning");
+          }
+          if (text) text.textContent = origText;
+        }
       });
 
       document.getElementById("btn-cancel").addEventListener("click", () => {
         if (!isEdited) return;
         
+        activeRedactionBoxes = [];
+        unredactedImageSrc = null;
+        clearRedactionOverlays();
+
         // Reset all states
         baseRotation = 0;
         straightenAngle = 0;

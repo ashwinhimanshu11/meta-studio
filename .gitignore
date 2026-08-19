@@ -3,3 +3,5 @@ node_modules/
 .DS_Store
 yolo_venv/
 dist/
+__pycache__/
+*.pyc

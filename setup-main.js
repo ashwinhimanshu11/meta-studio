@@ -131,70 +131,22 @@ async function performWindowsSetup(event) {
     reportProgress('Installing PIP...', 0.4);
     await runCommand(`.\\python.exe get-pip.py`, pythonDir);
 
-    // Install ultralytics and opencv - use CPU-only torch to avoid CUDA DLL dependency issues on Windows
-    reportProgress('Installing PyTorch (CPU)...', 0.5);
-    await runCommand(`.\\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu`, pythonDir);
-    reportProgress('Installing AI Dependencies...', 0.7);
-    await runCommand(`.\\python.exe -m pip install ultralytics opencv-python`, pythonDir);
+    // Install InsightFace, ONNXRuntime, OpenCV, and dependencies
+    reportProgress('Installing AI Redaction Engine (InsightFace)...', 0.5);
+    await runCommand(`.\\python.exe -m pip install "numpy<2" insightface onnxruntime opencv-python pillow ultralytics`, pythonDir);
 
-    // Verify torch loads correctly — WinError 126 means missing VC++ Redistributable DLLs (c10.dll etc.)
-    reportProgress('Verifying PyTorch installation...', 0.75);
-    const torchTestResult = await new Promise((resolve) => {
-      exec(`.\\python.exe -c "import torch; print('ok')"`, { cwd: pythonDir }, (error, stdout, stderr) => {
-        resolve({ ok: !error && stdout.trim() === 'ok', stderr: stderr || (error && error.message) || '' });
-      });
-    });
-
-    if (!torchTestResult.ok) {
-      const needsVcRedist = torchTestResult.stderr.includes('126') || torchTestResult.stderr.toLowerCase().includes('dll') || torchTestResult.stderr.toLowerCase().includes('c10');
-      if (needsVcRedist) {
-        // Silently download and install Microsoft Visual C++ Redistributable 2019 x64
-        reportProgress('Installing Visual C++ Runtime (required for PyTorch)...', 0.78);
-        const vcRedistPath = path.join(userData, 'vc_redist.x64.exe');
-        await downloadFile(
-          'https://aka.ms/vs/17/release/vc_redist.x64.exe',
-          vcRedistPath,
-          (p) => reportProgress('Downloading Visual C++ Runtime...', p)
-        );
-        // Run silent install (/install /quiet /norestart)
-        await new Promise((resolve, reject) => {
-          exec(`"${vcRedistPath}" /install /quiet /norestart`, (error) => {
-            // Exit code 0 = success, 3010 = success but reboot required — both are fine
-            if (error && error.code !== 0 && error.code !== 3010) {
-              reject(new Error(`VC++ Redistributable install failed (code ${error.code}): ${error.message}`));
-            } else {
-              resolve();
-            }
-          });
-        });
-        try { fs.unlinkSync(vcRedistPath); } catch (_) {}
-
-        // Re-verify torch after VC++ install
-        reportProgress('Re-verifying PyTorch after runtime install...', 0.82);
-        const retestResult = await new Promise((resolve) => {
-          exec(`.\\python.exe -c "import torch; print('ok')"`, { cwd: pythonDir }, (error, stdout, stderr) => {
-            resolve({ ok: !error && stdout.trim() === 'ok', stderr: stderr || (error && error.message) || '' });
-          });
-        });
-        if (!retestResult.ok) {
-          throw new Error(
-            `PyTorch still cannot load after installing Visual C++ Runtime.\n\nDetails: ${retestResult.stderr}\n\nPlease restart your computer and run setup again. If the problem persists, download the Visual C++ Redistributable manually from: https://aka.ms/vs/17/release/vc_redist.x64.exe`
-          );
-        }
-      } else {
-        // Some other torch import error — surface it directly
-        throw new Error(`PyTorch installation test failed:\n\n${torchTestResult.stderr}`);
-      }
-    }
-    
     // Install python script for inference
     reportProgress('Finalizing...', 0.9);
-    const scriptSource = app.isPackaged ? path.join(process.resourcesPath, 'yolo_redact.py') : path.join(__dirname, 'yolo_redact.py');
+    const scriptSource = app.isPackaged ? path.join(process.resourcesPath, 'insightface_redact.py') : path.join(__dirname, 'insightface_redact.py');
+    const yoloScriptSource = app.isPackaged ? path.join(process.resourcesPath, 'yolo_redact.py') : path.join(__dirname, 'yolo_redact.py');
     const faceXmlSource = app.isPackaged ? path.join(process.resourcesPath, 'haarcascade_frontalface_default.xml') : path.join(__dirname, 'haarcascade_frontalface_default.xml');
     const plateXmlSource = app.isPackaged ? path.join(process.resourcesPath, 'haarcascade_russian_plate_number.xml') : path.join(__dirname, 'haarcascade_russian_plate_number.xml');
 
     if (fs.existsSync(scriptSource)) {
-        fs.copyFileSync(scriptSource, path.join(yoloDir, 'yolo_redact.py'));
+        fs.copyFileSync(scriptSource, path.join(yoloDir, 'insightface_redact.py'));
+    }
+    if (fs.existsSync(yoloScriptSource)) {
+        fs.copyFileSync(yoloScriptSource, path.join(yoloDir, 'yolo_redact.py'));
     }
     if (fs.existsSync(faceXmlSource)) {
         fs.copyFileSync(faceXmlSource, path.join(yoloDir, 'haarcascade_frontalface_default.xml'));
